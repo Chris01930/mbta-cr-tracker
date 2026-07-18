@@ -1,25 +1,42 @@
 {
   "expo": {
-    "name": "mbta-tracker",
+    "name": "MBTA CR Tracker",
     "slug": "mbta-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "scheme": "mbtacr",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "net.chrisnewell.mbtacr",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Used to center the map on your location and resolve the nearest Commuter Rail station.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "net.chrisnewell.mbtacr",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#80276C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Used to center the map on your location and resolve the nearest Commuter Rail station."
+        }
+      ]
+    ]
   }
 }

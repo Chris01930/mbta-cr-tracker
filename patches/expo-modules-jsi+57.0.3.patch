@@ -1,0 +1,41 @@
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Coding/JavaScriptCodable+Date.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Coding/JavaScriptCodable+Date.swift
+index eb1cc94..1d6d3ab 100644
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Coding/JavaScriptCodable+Date.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Coding/JavaScriptCodable+Date.swift
+@@ -50,7 +50,7 @@ let maxJavaScriptDateMilliseconds: Double = 8_640_000_000_000_000
+ /// faithful to `new Date(number)`; the `Date`/string branches pass an already-clipped `getTime()` through.
+ @usableFromInline
+ func dateFromMilliseconds(_ milliseconds: Double) throws -> Date {
+-  guard milliseconds.isFinite, abs(milliseconds) <= maxJavaScriptDateMilliseconds else {
++  guard milliseconds.isFinite, milliseconds.magnitude <= maxJavaScriptDateMilliseconds else {
+     throw InvalidDateException()
+   }
+   return Date(timeIntervalSince1970: milliseconds.rounded(.towardZero) / 1000.0)
+diff --git a/node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh b/node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh
+index 28d3249..373b364 100755
+--- a/node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh
++++ b/node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh
+@@ -217,6 +217,9 @@ build_slice() {
+     DEBUG_INFORMATION_FORMAT=dwarf-with-dsym \
+     COMPILER_INDEX_STORE_ENABLE=NO \
+     SWIFT_COMPILATION_MODE=wholemodule \
++    CODE_SIGNING_ALLOWED=NO \
++    CODE_SIGNING_REQUIRED=NO \
++    CODE_SIGN_IDENTITY="" \
+   )
+ 
+   local product_path="${BUILD_PRODUCTS_PATH}/${build_dir_name}"
+@@ -236,6 +239,13 @@ build_slice() {
+     exit 1
+   fi
+ 
++  # macOS 26 (Tahoe) stamps com.apple.FinderInfo / com.apple.provenance xattrs on
++  # build products; codesign then rejects the framework ("resource fork, Finder
++  # information, or similar detritus not allowed"). Strip them from the source so
++  # the staged copy is clean and the outer app build can re-sign the embedded
++  # framework. (The nested build above is run with signing disabled.)
++  xattr -cr "$framework_src" 2>/dev/null || true
++
+   # Replace the slice in place. Stage to a temp location first so a partial
+   # write can't leave the xcframework in a broken state.
+   local slice_dir="${XCFRAMEWORK_PATH}/${slice_id}"
