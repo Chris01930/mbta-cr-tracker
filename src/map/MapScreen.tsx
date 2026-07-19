@@ -71,6 +71,9 @@ export function MapScreen() {
         <TrainMarkers onSelect={handleMarkerSelect} />
       </Map>
 
+      {/* Ambient cue: amber frame around the map while viewing history. */}
+      {mode === 'playback' && <View style={styles.playbackFrame} pointerEvents="none" />}
+
       {/* Overlays */}
       <SafeAreaView style={styles.overlay} pointerEvents="box-none" edges={['top', 'bottom']}>
         <View style={styles.topBar} pointerEvents="box-none">
@@ -103,4 +106,9 @@ const styles = StyleSheet.create({
   },
   topBar: { paddingHorizontal: 12, paddingTop: 8 },
   bottomBar: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
+  playbackFrame: {
+    ...StyleSheet.absoluteFill,
+    borderWidth: 3,
+    borderColor: '#F5A623',
+  },
 });

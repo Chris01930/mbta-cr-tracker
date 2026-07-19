@@ -8,7 +8,8 @@ import { heartbeatColor, heartbeatLabel } from '../lib/format';
 /**
  * Top status bar. In live mode it's the freshness heartbeat (green = streaming,
  * amber = polling, red = stale) with a live "last data Xs ago" ticker. In
- * playback mode it shows a Playback pill. Both modes expose Heritage + History.
+ * playback (history) mode it turns into a clearly-distinct amber banner with a
+ * prominent "Go Live" button, so the two modes are unmistakable.
  */
 export function HeartbeatBar({
   onOpenHeritage,
@@ -33,25 +34,36 @@ export function HeartbeatBar({
     return () => clearInterval(id);
   }, []);
 
-  const isPlayback = mode === 'playback';
+  if (mode === 'playback') {
+    return (
+      <View style={[styles.bar, styles.barPlayback]} pointerEvents="box-none">
+        <View style={styles.left}>
+          <View style={styles.historyDot} />
+          <Text style={styles.historyLabel}>HISTORY</Text>
+          <Text style={styles.meta}>
+            {count} train{count === 1 ? '' : 's'}
+          </Text>
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.goLiveBtn} onPress={exitToLive} accessibilityLabel="Go live">
+            <Text style={styles.goLiveText}>● Go Live</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
+            <Text style={styles.iconText}>Day</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.bar} pointerEvents="box-none">
       <View style={styles.left}>
-        {isPlayback ? (
-          // Prominent, always-visible way to jump straight back to live.
-          <TouchableOpacity style={styles.liveBtn} onPress={exitToLive}>
-            <Text style={styles.liveText}>● Live</Text>
-          </TouchableOpacity>
-        ) : (
-          <>
-            <View style={[styles.dot, { backgroundColor: heartbeatColor(heartbeat) }]} />
-            <Text style={styles.status}>{heartbeatLabel(heartbeat)}</Text>
-          </>
-        )}
+        <View style={[styles.dot, { backgroundColor: heartbeatColor(heartbeat) }]} />
+        <Text style={styles.status}>{heartbeatLabel(heartbeat)}</Text>
         <Text style={styles.meta}>
           {count} train{count === 1 ? '' : 's'}
-          {!isPlayback && lastDataMs != null ? ` · ${agoLabel(lastDataMs)}` : ''}
+          {lastDataMs != null ? ` · ${agoLabel(lastDataMs)}` : ''}
         </Text>
       </View>
       <View style={styles.actions}>
@@ -69,6 +81,8 @@ export function HeartbeatBar({
   );
 }
 
+const AMBER = '#F5A623';
+
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
@@ -79,21 +93,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
   },
+  // Playback: warm amber-tinted banner with an amber border — visually
+  // unmistakable vs. the neutral-dark live bar.
+  barPlayback: {
+    backgroundColor: 'rgba(52,40,16,0.96)',
+    borderWidth: 1.5,
+    borderColor: AMBER,
+  },
   left: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
   status: { color: '#fff', fontWeight: '700', fontSize: 13, marginRight: 8 },
-  liveBtn: {
-    backgroundColor: '#2ECC71',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  liveText: { color: '#0E0F12', fontWeight: '800', fontSize: 13 },
+  historyDot: { width: 8, height: 8, borderRadius: 2, backgroundColor: AMBER, marginRight: 8 },
+  historyLabel: { color: AMBER, fontWeight: '800', fontSize: 13, letterSpacing: 1, marginRight: 8 },
   meta: { color: '#B9BEC7', fontSize: 12, flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 10 },
   infoBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   infoText: { color: '#B9BEC7', fontSize: 18, fontWeight: '600' },
+  goLiveBtn: {
+    backgroundColor: '#2ECC71',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  goLiveText: { color: '#0E0F12', fontWeight: '800', fontSize: 13 },
   iconBtn: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: 10,
