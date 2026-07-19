@@ -30,6 +30,7 @@ interface VehicleAttrs {
   speed: number | null; // meters/second
   current_status: VehicleStatus | null;
   updated_at: string | null;
+  revenue?: string | null; // "REVENUE" | "NON_REVENUE" (may be absent)
 }
 
 interface TripAttrs {
@@ -93,6 +94,7 @@ export function normalizeVehicles(doc: JsonApiDoc): Train[] {
       lon: a.longitude,
       brg: a.bearing ?? null,
       upd: a.updated_at ?? null,
+      isNonRevenue: a.revenue === 'NON_REVENUE',
       tripId,
       spd: a.speed ?? null,
     });

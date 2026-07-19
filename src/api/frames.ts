@@ -28,10 +28,39 @@ export async function loadDayFrames(date: string, signal?: AbortSignal): Promise
   const res = await fetch(framesUrl(date), { signal });
   if (res.status === 403) throw new NoDataError(date);
   if (!res.ok) throw new Error(`frames ${date}: HTTP ${res.status}`);
-  const body = (await res.json()) as DayFrames;
-  // Frames are already sorted by key, but reconstruct empty-poll times if a
-  // frame arrives with no `time` (defensive; overnight empties have time set).
-  return body;
+  // Unknown/extra fields are ignored (see normalizeDayFrames).
+  return normalizeDayFrames(await res.json());
+}
+
+/** A frames-file train as served: the modeled fields plus the optional `rev`. */
+type RawFramesTrain = Partial<Train> & { rev?: string };
+
+/**
+ * Normalize a raw day-frames document into the app's model. The only
+ * transform today is mapping the optional `rev` field to `isNonRevenue`
+ * (absent -> false, absent from all frames written before 2026-07-19). Unknown
+ * fields are ignored by construction — this is where any future per-train
+ * normalization would live.
+ */
+export function normalizeDayFrames(raw: unknown): DayFrames {
+  const doc = (raw ?? {}) as { date?: string; updated?: string; frames?: unknown[] };
+  const frames: Frame[] = (Array.isArray(doc.frames) ? doc.frames : []).map((f) => {
+    const frame = (f ?? {}) as { key?: string; time?: string; trains?: RawFramesTrain[] };
+    const trains: Train[] = (Array.isArray(frame.trains) ? frame.trains : []).map((t) => ({
+      cab: t.cab ?? null,
+      train: t.train ?? null,
+      dest: t.dest ?? null,
+      route: t.route ?? null,
+      status: t.status ?? null,
+      lat: t.lat as number,
+      lon: t.lon as number,
+      brg: t.brg ?? null,
+      upd: t.upd ?? null,
+      isNonRevenue: t.rev === 'NON_REVENUE',
+    }));
+    return { key: frame.key ?? '', time: frame.time ?? '', trains };
+  });
+  return { date: doc.date ?? '', updated: doc.updated ?? '', frames };
 }
 
 /** The newest (last) frame in a day file — used to seed a live session. */

@@ -83,7 +83,19 @@ The comma-joined `filter[route]` value for API calls is simply
           "status":"IN_TRANSIT_TO", // IN_TRANSIT_TO | STOPPED_AT | INCOMING_AT
           "lat": 42.609, "lon": -70.87492,    // 5 decimal places
           "brg": 135,               // bearing degrees, may be null
-          "upd": "2026-07-16T22:24:05-04:00"  // per-vehicle updated_at
+          "upd": "2026-07-16T22:24:05-04:00", // per-vehicle updated_at
+          "vid": "1934",            // present ONLY when cab is null ("ghost"
+                                    // vehicles — no label/trip identity):
+                                    // the API vehicle resource id, use it as
+                                    // the tracking key for these. Added
+                                    // 2026-07-19. Render ghosts distinctly
+                                    // (web: dashed route-color ring) and give
+                                    // users a toggle to show/hide them.
+          "rev": "NON_REVENUE"      // present ONLY for non-revenue moves
+                                    // (deadheads, equipment repositioning);
+                                    // absent = revenue trip. Added 2026-07-19;
+                                    // older frames never carry it. Render
+                                    // non-revenue distinctly (web: hollow dot).
         }
       ]
     }

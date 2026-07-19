@@ -84,6 +84,13 @@ export function InspectCard() {
         </View>
       )}
 
+      {/* Non-revenue tag (whenever selected) */}
+      {train.isNonRevenue && (
+        <View style={styles.nonRevTag}>
+          <Text style={styles.nonRevText}>NON-REVENUE</Text>
+        </View>
+      )}
+
       {/* Stage 2+: details */}
       {stage >= 2 && (
         <View style={styles.details}>
@@ -202,6 +209,17 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   heritageText: { color: '#F5C518', fontSize: 12, fontWeight: '700' },
+  nonRevTag: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245,166,35,0.15)',
+    borderColor: '#F5A623',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  nonRevText: { color: '#F5A623', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   details: { marginTop: 10, gap: 4 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   detailLabel: { color: '#8A909B', fontSize: 13 },

@@ -22,6 +22,12 @@ export interface Train {
   brg: number | null;
   /** Per-vehicle updated_at (ISO 8601 with Eastern offset). */
   upd: string | null;
+  /**
+   * Non-revenue movement (deadhead / equipment repositioning). Derived from the
+   * frames `rev` field or the live vehicle `revenue` attribute; default false.
+   * Display-only — never affects fetching, pairing, or trails.
+   */
+  isNonRevenue: boolean;
   /** Live-only: trip id, needed for predictions. Absent in archive frames. */
   tripId?: string | null;
   /** Live-only: speed in meters/second (×2.23694 for mph); often null. */

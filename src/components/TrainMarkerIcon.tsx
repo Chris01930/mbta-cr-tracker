@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { heritageIconUrl } from '../constants/heritage';
+import { heritageIconOpacity, puckAppearance } from '../lib/markerStyle';
 
 /**
  * Visual for a single train marker.
@@ -20,21 +21,33 @@ interface Props {
   label: string; // cab number (or "?") — always shown
   unit?: string | null; // heritage unit number if paired
   selected?: boolean;
+  isNonRevenue?: boolean; // deadhead / equipment move — render distinctly
 }
 
-export function TrainMarkerIcon({ color, bearing, label, unit, selected }: Props) {
+export function TrainMarkerIcon({ color, bearing, label, unit, selected, isNonRevenue = false }: Props) {
   const iconUrl = heritageIconUrl(unit);
+  const puck = puckAppearance(color, isNonRevenue);
 
   return (
     <View style={styles.wrap} pointerEvents="none">
       {iconUrl ? (
         <View style={[styles.locoWrap, selected && styles.locoSelected]}>
-          <Image source={{ uri: iconUrl }} style={styles.loco} resizeMode="contain" />
+          <Image
+            source={{ uri: iconUrl }}
+            style={[styles.loco, { opacity: heritageIconOpacity(isNonRevenue) }]}
+            resizeMode="contain"
+          />
         </View>
       ) : (
-        <View style={[styles.puck, { backgroundColor: color }, selected && styles.puckSelected]}>
+        <View
+          style={[
+            styles.puck,
+            { backgroundColor: puck.backgroundColor, borderColor: puck.borderColor },
+            selected && styles.puckSelected,
+          ]}
+        >
           <View style={[styles.arrow, { transform: [{ rotate: `${bearing ?? 0}deg` }] }]}>
-            <View style={styles.arrowHead} />
+            <View style={[styles.arrowHead, { borderBottomColor: puck.chevronColor }]} />
           </View>
         </View>
       )}

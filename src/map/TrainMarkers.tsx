@@ -35,6 +35,7 @@ export function TrainMarkers({ onSelect }: { onSelect: (cab: string) => void }) 
               label={t.cab ?? '?'}
               unit={unit}
               selected={!!t.cab && t.cab === selectedCab}
+              isNonRevenue={t.isNonRevenue}
             />
           </Marker>
         );
