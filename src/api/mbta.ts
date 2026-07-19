@@ -10,14 +10,14 @@ import type { Train, VehicleStatus } from '../types';
 
 // --- JSON:API minimal shapes ------------------------------------------------
 
-interface JsonApiResource<A = Record<string, unknown>> {
+export interface JsonApiResource<A = Record<string, unknown>> {
   id: string;
   type: string;
   attributes?: A;
   relationships?: Record<string, { data?: { id: string; type: string } | null }>;
 }
 
-interface JsonApiDoc {
+export interface JsonApiDoc {
   data?: JsonApiResource[] | JsonApiResource;
   included?: JsonApiResource[];
 }
@@ -69,7 +69,7 @@ export async function pollVehicles(signal?: AbortSignal): Promise<Train[]> {
   return normalizeVehicles(doc);
 }
 
-function normalizeVehicles(doc: JsonApiDoc): Train[] {
+export function normalizeVehicles(doc: JsonApiDoc): Train[] {
   const trips = new Map<string, TripAttrs>();
   for (const inc of doc.included ?? []) {
     if (inc.type === 'trip') trips.set(inc.id, (inc.attributes as unknown as TripAttrs) ?? {});
