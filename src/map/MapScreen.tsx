@@ -13,6 +13,7 @@ import { PlaybackBar } from '../components/PlaybackBar';
 import { HeritageSheet } from '../components/HeritageSheet';
 import { DatePickerSheet } from '../components/DatePickerSheet';
 import { StationSheet, type StationTarget } from '../components/StationSheet';
+import { AboutSheet } from '../components/AboutSheet';
 
 /**
  * The single map screen: MapLibre basemap + CR network overlay + train markers
@@ -25,6 +26,7 @@ export function MapScreen() {
   const mode = useStore((s) => s.mode);
   const [heritageOpen, setHeritageOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [station, setStation] = useState<StationTarget | null>(null);
 
   // Tapping a marker also registers as a map tap on iOS; ignore that map tap
@@ -72,7 +74,11 @@ export function MapScreen() {
       {/* Overlays */}
       <SafeAreaView style={styles.overlay} pointerEvents="box-none" edges={['top', 'bottom']}>
         <View style={styles.topBar} pointerEvents="box-none">
-          <HeartbeatBar onOpenHeritage={() => setHeritageOpen(true)} onOpenDates={() => setDatesOpen(true)} />
+          <HeartbeatBar
+            onOpenHeritage={() => setHeritageOpen(true)}
+            onOpenDates={() => setDatesOpen(true)}
+            onOpenAbout={() => setAboutOpen(true)}
+          />
         </View>
         <View style={styles.bottomBar} pointerEvents="box-none">
           <InspectCard />
@@ -82,6 +88,7 @@ export function MapScreen() {
 
       <HeritageSheet visible={heritageOpen} onClose={() => setHeritageOpen(false)} />
       <DatePickerSheet visible={datesOpen} onClose={() => setDatesOpen(false)} />
+      <AboutSheet visible={aboutOpen} onClose={() => setAboutOpen(false)} />
       <StationSheet target={station} onClose={() => setStation(null)} />
     </View>
   );

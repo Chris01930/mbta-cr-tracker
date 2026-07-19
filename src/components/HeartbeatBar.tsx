@@ -13,9 +13,11 @@ import { heartbeatColor, heartbeatLabel } from '../lib/format';
 export function HeartbeatBar({
   onOpenHeritage,
   onOpenDates,
+  onOpenAbout,
 }: {
   onOpenHeritage: () => void;
   onOpenDates: () => void;
+  onOpenAbout: () => void;
 }) {
   const mode = useStore((s) => s.mode);
   const heartbeat = useStore((s) => s.heartbeat);
@@ -53,6 +55,9 @@ export function HeartbeatBar({
         </Text>
       </View>
       <View style={styles.actions}>
+        <TouchableOpacity style={styles.infoBtn} onPress={onOpenAbout} accessibilityLabel="About">
+          <Text style={styles.infoText}>ⓘ</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
           <Text style={styles.iconText}>History</Text>
         </TouchableOpacity>
@@ -87,6 +92,8 @@ const styles = StyleSheet.create({
   liveText: { color: '#0E0F12', fontWeight: '800', fontSize: 13 },
   meta: { color: '#B9BEC7', fontSize: 12, flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 10 },
+  infoBtn: { paddingHorizontal: 4, paddingVertical: 4 },
+  infoText: { color: '#B9BEC7', fontSize: 18, fontWeight: '600' },
   iconBtn: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: 10,
