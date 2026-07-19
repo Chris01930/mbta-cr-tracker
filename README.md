@@ -11,7 +11,7 @@ Streaming can be hot-enabled later (see [Enabling streaming](#enabling-streaming
 
 ## Features
 
-- **Live map** of all 13 CR routes on a MapLibre basemap (Carto Positron, keyless).
+- **Live map** of every MBTA Commuter Rail route on a MapLibre basemap (Carto Positron, keyless).
 - **Historical playback / scrub** — pick any archived day (History button), then
   scrub the timeline slider or play it back at 1–8× with transport controls. The
   map, markers, heritage picker, and inspect card all reflect the scrubbed frame.
@@ -36,7 +36,7 @@ src/
   config.ts                 all tunables (routes, URLs, cadences, thresholds)
   types.ts                  Train / Frame / DayFrames domain types
   constants/
-    routes.ts               13 routes, stable per-route palette, line coloring
+    routes.ts               CR route list, stable per-route palette, names
     heritage.ts             the six heritage units
   api/
     mbta.ts                 MBTA v3 REST: vehicles, predictions, schedules, trips

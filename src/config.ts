@@ -4,8 +4,15 @@
  * config without touching feature code.
  */
 
-// The 13 Commuter Rail routes. This filter inherently excludes Shuttle-* bus
-// routes — never widen it to route_type=2 (that pulls in replacement buses).
+// The Commuter Rail routes (verified against the live API 2026-07-19). This
+// filter inherently excludes Shuttle-* bus routes — never widen it to
+// route_type=2 (that pulls in replacement buses).
+//
+// 2025 South Coast Rail restructuring: CR-Middleborough and CR-Stoughton were
+// retired, folded into CR-NewBedford and CR-Providence. CR-Foxboro is dedicated
+// event service. CapeFlyer (no CR- prefix) is route_type 2 but hidden from the
+// default /routes listing — it must be filtered for explicitly; seasonal
+// (summer weekends).
 export const CR_ROUTES = [
   'CR-Newburyport',
   'CR-Fitchburg',
@@ -15,11 +22,12 @@ export const CR_ROUTES = [
   'CR-Franklin',
   'CR-Needham',
   'CR-Providence',
-  'CR-Stoughton',
-  'CR-Middleborough',
+  'CR-NewBedford',
   'CR-Kingston',
   'CR-Greenbush',
   'CR-Fairmount',
+  'CR-Foxboro',
+  'CapeFlyer',
 ] as const;
 
 export const CR_ROUTE_FILTER = CR_ROUTES.join(',');

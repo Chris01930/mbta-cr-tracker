@@ -19,11 +19,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   'CR-Franklin': { id: 'CR-Franklin', short: 'Franklin/Foxboro', color: '#9467BD' },
   'CR-Needham': { id: 'CR-Needham', short: 'Needham', color: '#E377C2' },
   'CR-Providence': { id: 'CR-Providence', short: 'Providence/Stoughton', color: '#17BECF' },
-  'CR-Stoughton': { id: 'CR-Stoughton', short: 'Stoughton', color: '#17BECF' },
-  'CR-Middleborough': { id: 'CR-Middleborough', short: 'Middleborough/Lakeville', color: '#BCBD22' },
-  'CR-Kingston': { id: 'CR-Kingston', short: 'Kingston', color: '#7F7F7F' },
+  'CR-NewBedford': { id: 'CR-NewBedford', short: 'Fall River/New Bedford', color: '#BCBD22' },
+  'CR-Kingston': { id: 'CR-Kingston', short: 'Kingston/Plymouth', color: '#7F7F7F' },
   'CR-Greenbush': { id: 'CR-Greenbush', short: 'Greenbush', color: '#393B79' },
   'CR-Fairmount': { id: 'CR-Fairmount', short: 'Fairmount', color: '#E7BA52' },
+  'CR-Foxboro': { id: 'CR-Foxboro', short: 'Foxboro Event', color: '#17A589' },
+  CapeFlyer: { id: 'CapeFlyer', short: 'CapeFLYER', color: '#5DADE2' },
 };
 
 const FALLBACK_COLOR = '#80276C'; // brand purple for unknown/ghost routes
@@ -50,11 +51,15 @@ export function lineColor(commLine: string | null | undefined): string {
   if (l.includes('lowell')) return ROUTE_META['CR-Lowell'].color;
   if (l.includes('haverhill')) return ROUTE_META['CR-Haverhill'].color;
   if (l.includes('worcester') || l.includes('framingham')) return ROUTE_META['CR-Worcester'].color;
-  if (l.includes('franklin') || l.includes('foxboro')) return ROUTE_META['CR-Franklin'].color;
+  if (l.includes('cape')) return ROUTE_META.CapeFlyer.color;
+  if (l.includes('foxboro')) return ROUTE_META['CR-Foxboro'].color;
+  if (l.includes('franklin')) return ROUTE_META['CR-Franklin'].color;
   if (l.includes('needham')) return ROUTE_META['CR-Needham'].color;
   if (l.includes('providence') || l.includes('stoughton')) return ROUTE_META['CR-Providence'].color;
-  if (l.includes('fall river') || l.includes('new bedford')) return ROUTE_META['CR-Middleborough'].color;
-  if (l.includes('kingston') || l.includes('middleborough')) return ROUTE_META['CR-Kingston'].color;
+  // South Coast Rail: Fall River / New Bedford / Middleborough corridor.
+  if (l.includes('fall river') || l.includes('new bedford') || l.includes('middleborough'))
+    return ROUTE_META['CR-NewBedford'].color;
+  if (l.includes('kingston') || l.includes('plymouth')) return ROUTE_META['CR-Kingston'].color;
   if (l.includes('greenbush')) return ROUTE_META['CR-Greenbush'].color;
   if (l.includes('fairmount')) return ROUTE_META['CR-Fairmount'].color;
   return FALLBACK_COLOR;
