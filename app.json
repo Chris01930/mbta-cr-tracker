@@ -36,6 +36,12 @@
         {
           "locationWhenInUsePermission": "Used to center the map on your location and resolve the nearest Commuter Rail station."
         }
+      ],
+      [
+        "./plugins/withIosSigningTeam",
+        {
+          "appleTeamId": "Z4K4WDMMZ6"
+        }
       ]
     ]
   }
