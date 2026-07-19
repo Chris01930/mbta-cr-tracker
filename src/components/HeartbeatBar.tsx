@@ -40,9 +40,6 @@ export function HeartbeatBar({
         <View style={styles.left}>
           <View style={styles.historyDot} />
           <Text style={styles.historyLabel}>HISTORY</Text>
-          <Text style={styles.meta}>
-            {count} train{count === 1 ? '' : 's'}
-          </Text>
         </View>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.goLiveBtn} onPress={exitToLive} accessibilityLabel="Go live">
@@ -50,6 +47,9 @@ export function HeartbeatBar({
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
             <Text style={styles.iconText}>Day</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.heritageBtn} onPress={onOpenHeritage}>
+            <Text style={styles.heritageText}>Heritage</Text>
           </TouchableOpacity>
         </View>
       </View>
