@@ -28,6 +28,7 @@ export function MapScreen() {
   const mode = useStore((s) => s.mode);
   const showTrails = useStore((s) => s.showTrails);
   const showRoutes = useStore((s) => s.showRoutes);
+  const showStations = useStore((s) => s.showStations);
   const [heritageOpen, setHeritageOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -73,6 +74,7 @@ export function MapScreen() {
         />
         <CrNetwork
           showLines={showRoutes}
+          showStations={showStations}
           onStationPress={(name, lng, lat) => setStation({ name, lng, lat })}
         />
         {showTrails && <Trails />}

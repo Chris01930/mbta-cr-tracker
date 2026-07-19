@@ -9,14 +9,18 @@ import { useStore } from '../state/store';
 export function LayerToggles() {
   const showTrails = useStore((s) => s.showTrails);
   const showRoutes = useStore((s) => s.showRoutes);
+  const showStations = useStore((s) => s.showStations);
   const toggleTrails = useStore((s) => s.toggleTrails);
   const toggleRoutes = useStore((s) => s.toggleRoutes);
+  const toggleStations = useStore((s) => s.toggleStations);
 
   return (
     <View style={styles.panel}>
       <Toggle label="Trails" on={showTrails} onPress={toggleTrails} />
       <View style={styles.divider} />
       <Toggle label="Routes" on={showRoutes} onPress={toggleRoutes} />
+      <View style={styles.divider} />
+      <Toggle label="Stations" on={showStations} onPress={toggleStations} />
     </View>
   );
 }

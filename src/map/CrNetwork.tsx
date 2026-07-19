@@ -24,11 +24,13 @@ const linesWithColor = {
 
 interface Props {
   onStationPress?: (name: string, lng: number, lat: number) => void;
-  /** Show the colored route lines. Stations stay tappable regardless. */
+  /** Show the colored route lines. */
   showLines?: boolean;
+  /** Show the tappable station dots. */
+  showStations?: boolean;
 }
 
-export function CrNetwork({ onStationPress, showLines = true }: Props) {
+export function CrNetwork({ onStationPress, showLines = true, showStations = true }: Props) {
   const stations = useMemo(() => rawStations as unknown as GeoJSON.FeatureCollection, []);
 
   const handleStationPress = (e: NativeSyntheticEvent<unknown>) => {
@@ -59,19 +61,21 @@ export function CrNetwork({ onStationPress, showLines = true }: Props) {
         </GeoJSONSource>
       )}
 
-      <GeoJSONSource id="cr-stations" data={stations} onPress={handleStationPress}>
-        <Layer
-          id="cr-stations-halo"
-          type="circle"
-          paint={{
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2.5, 12, 5, 15, 7],
-            'circle-color': '#ffffff',
-            'circle-stroke-color': CONFIG.brandColor,
-            'circle-stroke-width': 1.5,
-            'circle-opacity': 0.95,
-          }}
-        />
-      </GeoJSONSource>
+      {showStations && (
+        <GeoJSONSource id="cr-stations" data={stations} onPress={handleStationPress}>
+          <Layer
+            id="cr-stations-halo"
+            type="circle"
+            paint={{
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2.5, 12, 5, 15, 7],
+              'circle-color': '#ffffff',
+              'circle-stroke-color': CONFIG.brandColor,
+              'circle-stroke-width': 1.5,
+              'circle-opacity': 0.95,
+            }}
+          />
+        </GeoJSONSource>
+      )}
     </>
   );
 }
