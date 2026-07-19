@@ -1,0 +1,140 @@
+{
+  "schema_version": 2,
+  "updated": "2026-07-19",
+  "comment": "Authoritative runtime config for trains.chrisnewell.net clients (web + mobile). Served from CloudFront with Cache-Control: public, max-age=300. Clients should cache the last good copy and fall back to their baked-in defaults if this file is unreachable.",
+  "endpoints": {
+    "frames_base": "https://trains.chrisnewell.net/frames/",
+    "mbta_api": "https://api-v3.mbta.com",
+    "icons_base": "https://trains.chrisnewell.net/icons/"
+  },
+  "routes": [
+    {
+      "id": "CR-Newburyport",
+      "name": "Newburyport/Rockport Line",
+      "color": "#4b7bd6"
+    },
+    {
+      "id": "CR-Fitchburg",
+      "name": "Fitchburg Line",
+      "color": "#8757c9"
+    },
+    {
+      "id": "CR-Lowell",
+      "name": "Lowell Line",
+      "color": "#2fa4a8"
+    },
+    {
+      "id": "CR-Haverhill",
+      "name": "Haverhill Line",
+      "color": "#c9a227"
+    },
+    {
+      "id": "CR-Worcester",
+      "name": "Framingham/Worcester Line",
+      "color": "#e0a028"
+    },
+    {
+      "id": "CR-Franklin",
+      "name": "Franklin/Foxboro Line",
+      "color": "#3aa676"
+    },
+    {
+      "id": "CR-Needham",
+      "name": "Needham Line",
+      "color": "#b0578f"
+    },
+    {
+      "id": "CR-Providence",
+      "name": "Providence/Stoughton Line",
+      "color": "#d95555"
+    },
+    {
+      "id": "CR-NewBedford",
+      "name": "Fall River/New Bedford Line",
+      "color": "#5b8c3e"
+    },
+    {
+      "id": "CR-Kingston",
+      "name": "Kingston Line",
+      "color": "#7d6bd9"
+    },
+    {
+      "id": "CR-Greenbush",
+      "name": "Greenbush Line",
+      "color": "#3fa0c9"
+    },
+    {
+      "id": "CR-Fairmount",
+      "name": "Fairmount Line",
+      "color": "#c96a3f"
+    },
+    {
+      "id": "CR-Foxboro",
+      "name": "Foxboro Event Service",
+      "color": "#8a8f3c",
+      "event_service": true
+    },
+    {
+      "id": "CapeFlyer",
+      "name": "CapeFLYER",
+      "color": "#2d7f9e",
+      "seasonal": true,
+      "hidden_in_route_listing": true
+    }
+  ],
+  "live": {
+    "poll_interval_sec": 60,
+    "stream_watchdog_sec": 60,
+    "stale_after_sec": 120,
+    "frame_commit_interval_sec": 60,
+    "max_session_frames": 600
+  },
+  "trails": {
+    "gap_break_min": 15,
+    "max_implied_mph": 90,
+    "max_hop_mi": 7,
+    "break_on_route_change": true
+  },
+  "heritage_units": [
+    {
+      "unit": "1030",
+      "model": "F40PH-3C",
+      "scheme": "Boston & Maine",
+      "icon": "https://trains.chrisnewell.net/icons/1030.png"
+    },
+    {
+      "unit": "1036",
+      "model": "F40PH-3C",
+      "scheme": "Central System",
+      "icon": "https://trains.chrisnewell.net/icons/1036.png"
+    },
+    {
+      "unit": "1071",
+      "model": "F40PHM-2C",
+      "scheme": "New Haven",
+      "icon": "https://trains.chrisnewell.net/icons/1071.png"
+    },
+    {
+      "unit": "1129",
+      "model": "GP40MC-3",
+      "scheme": "MBTA Classic",
+      "icon": "https://trains.chrisnewell.net/icons/1129.png"
+    },
+    {
+      "unit": "1130",
+      "model": "GP40MC-3",
+      "scheme": "MBTA Purple/Gold",
+      "icon": "https://trains.chrisnewell.net/icons/1130.png"
+    },
+    {
+      "unit": "1776",
+      "model": "GP40MC-3",
+      "scheme": "America 250",
+      "icon": "https://trains.chrisnewell.net/icons/1776.png"
+    }
+  ],
+  "attribution": {
+    "data": "Route, schedule, and vehicle data provided by the MBTA / MassDOT. This project is not affiliated with or endorsed by the MBTA.",
+    "map": "Basemap \u00a9 OpenStreetMap contributors"
+  }
+}

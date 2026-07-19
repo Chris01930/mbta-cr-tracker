@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   FlatList,
+  Image,
   Modal,
   StyleSheet,
   Text,
@@ -8,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { heritageName } from '../constants/heritage';
 import { CAB_ROSTER, CAB_BY_NUMBER } from '../constants/cabRoster';
 import { routeShort } from '../constants/routes';
 import { useConfigStore } from '../config/configStore';
@@ -37,12 +37,8 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   const [tab, setTab] = useState<AssignTab>('active');
   const [search, setSearch] = useState('');
 
-  // The unit list is config-driven (numbers from config.json); names baked in.
-  const unitNumbers = useConfigStore((s) => s.config.heritageUnits);
-  const units = useMemo(
-    () => unitNumbers.map((number) => ({ number, name: heritageName(number) })),
-    [unitNumbers],
-  );
+  // The full roster (road number, model, scheme, icon URL) is config-driven.
+  const units = useConfigStore((s) => s.config.heritageUnits);
 
   const activeCabs = useMemo(
     () =>
@@ -92,24 +88,27 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
           {!assigning ? (
             <FlatList
               data={units}
-              keyExtractor={(u) => u.number}
+              keyExtractor={(u) => u.unit}
               renderItem={({ item }) => {
-                const cab = heritage[item.number];
+                const cab = heritage[item.unit];
                 return (
                   <View style={styles.row}>
                     <View style={styles.rowLeft}>
-                      <Text style={styles.unitNum}>{item.number}</Text>
-                      <View>
-                        <Text style={styles.unitName}>{item.name}</Text>
+                      <Image source={{ uri: item.icon }} style={styles.unitIcon} resizeMode="contain" />
+                      <View style={styles.unitText}>
+                        <Text style={styles.unitName}>
+                          {item.scheme} {item.unit}
+                        </Text>
+                        <Text style={styles.unitModel}>{item.model}</Text>
                         <Text style={styles.pairing}>{cab ? `Paired to Cab ${cab}` : 'Not paired'}</Text>
                       </View>
                     </View>
                     <View style={styles.actions}>
-                      <TouchableOpacity style={styles.assignBtn} onPress={() => startAssign(item.number)}>
+                      <TouchableOpacity style={styles.assignBtn} onPress={() => startAssign(item.unit)}>
                         <Text style={styles.assignText}>{cab ? 'Reassign' : 'Assign'}</Text>
                       </TouchableOpacity>
                       {cab && (
-                        <TouchableOpacity style={styles.clearBtn} onPress={() => unpairHeritage(item.number)}>
+                        <TouchableOpacity style={styles.clearBtn} onPress={() => unpairHeritage(item.unit)}>
                           <Text style={styles.clearText}>Unassign</Text>
                         </TouchableOpacity>
                       )}
@@ -243,8 +242,11 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  unitIcon: { width: 48, height: 34, marginRight: 10 },
+  unitText: { flexShrink: 1 },
   unitNum: { color: '#F5C518', fontWeight: '800', fontSize: 16, width: 48 },
   unitName: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  unitModel: { color: '#F5C518', fontSize: 12, fontWeight: '600', marginTop: 1 },
   pairing: { color: '#8A909B', fontSize: 12, marginTop: 2 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   assignBtn: { backgroundColor: '#80276C', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },

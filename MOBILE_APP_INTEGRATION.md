@@ -53,7 +53,12 @@ copy; fall back to baked-in defaults if unreachable. It carries:
 - `endpoints` — frames base URL and MBTA API base.
 - `live` / `trails` — the tuning constants described elsewhere in this doc,
   so behavior changes don't require app updates either.
-- `heritage_units` — the known unit numbers for the pairing feature.
+- `heritage_units` — the heritage roster as objects: `unit` (road number,
+  the pairing key), `model` (locomotive model designation — **config is the
+  authoritative source for model numbers; do not hardcode them in the app**),
+  `scheme` (livery name for display), and `icon` (hosted PNG URL — see the
+  heritage section). Schema v2 changed this from a plain string array; treat
+  entries as objects.
 - `attribution` — required data/basemap credit strings; display in-app.
 
 The comma-joined `filter[route]` value for API calls is simply
@@ -214,8 +219,12 @@ segment when ANY of:
 Color each segment by its own route.
 
 ### Heritage units
-- Six units; icon PNGs are embedded in the web page as data URIs (extract
-  them, or request originals). Pairing is unit → cab label, stored locally
+- Icon PNGs are hosted at the URLs in each config entry's `icon` field
+  (`https://trains.chrisnewell.net/icons/<unit>.png`) — transparent-trimmed,
+  128 px tall, served with Cache-Control: max-age=86400. Fetch and cache them
+  at runtime keyed by URL; if a unit's artwork is ever revised the filename
+  changes (e.g. 1776-v2.png) so caches self-invalidate. Do not bundle icons
+  in the app: new units appear by config update alone. Pairing is unit → cab label, stored locally
   on-device (web uses localStorage key `crHeritage`), user-editable
   (assign / reassign / unassign), persists until changed.
 - **Never auto-match** a vehicle label to a unit number — labels are cab

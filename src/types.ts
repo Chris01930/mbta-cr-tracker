@@ -45,11 +45,3 @@ export interface DayFrames {
 }
 
 export type HeartbeatState = 'streaming' | 'polling' | 'stale' | 'idle';
-
-/** A heritage locomotive unit; pairing maps unit -> cab label. */
-export interface HeritageUnit {
-  /** Locomotive number, e.g. "1030". */
-  number: string;
-  /** Human label. */
-  name: string;
-}

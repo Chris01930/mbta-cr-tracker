@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { loadPredictions, type PredictionRow } from '../api/mbta';
 import { routeColor, routeShort } from '../constants/routes';
-import { heritageName } from '../constants/heritage';
+import { heritageInfo, heritageName } from '../constants/heritage';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { findByCab, mphLabel, prettyStatus } from '../lib/format';
 import { formatClock } from '../lib/time';
@@ -90,7 +90,12 @@ export function InspectCard() {
           <Detail label="Destination" value={train.dest ?? '—'} />
           <Detail label="Status" value={prettyStatus(train.status)} />
           <Detail label="Speed" value={mphLabel(train.spd)} />
-          {unit && <Detail label="Heritage unit" value={heritageName(unit)} />}
+          {unit && (
+            <Detail
+              label="Heritage unit"
+              value={heritageInfo(unit) ? `${heritageInfo(unit)!.model} · ${heritageName(unit)}` : heritageName(unit)}
+            />
+          )}
         </View>
       )}
 

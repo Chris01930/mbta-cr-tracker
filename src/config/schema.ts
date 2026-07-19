@@ -1,8 +1,8 @@
 /**
  * Runtime config: the remote config.json shape (raw) and the app's normalized
  * form (derived fields precomputed). Fetched from CloudFront at launch, cached,
- * with baked-in defaults as fallback. See MOBILE_APP_INTEGRATION.md
- * "Remote config".
+ * with a vendored copy of config.json as the offline fallback. See
+ * MOBILE_APP_INTEGRATION.md "Remote config".
  */
 
 // --- Raw shape as served at https://trains.chrisnewell.net/config.json --------
@@ -16,10 +16,18 @@ export interface RawRoute {
   hidden_in_route_listing?: boolean;
 }
 
+/** Heritage roster entry (schema v2: objects, not plain strings). */
+export interface RawHeritageUnit {
+  unit: string; // road number — the pairing key
+  model: string; // authoritative locomotive model designation
+  scheme: string; // livery name
+  icon: string; // hosted PNG URL
+}
+
 export interface RawConfig {
   schema_version: number;
   updated?: string;
-  endpoints: { frames_base: string; mbta_api: string };
+  endpoints: { frames_base: string; mbta_api: string; icons_base?: string };
   routes: RawRoute[];
   live: {
     poll_interval_sec: number;
@@ -34,7 +42,7 @@ export interface RawConfig {
     max_hop_mi: number;
     break_on_route_change: boolean;
   };
-  heritage_units: string[];
+  heritage_units: RawHeritageUnit[];
   attribution: { data: string; map: string };
 }
 
@@ -51,6 +59,13 @@ export interface RouteInfo {
   hidden: boolean;
 }
 
+export interface HeritageUnitInfo {
+  unit: string;
+  model: string;
+  scheme: string;
+  icon: string;
+}
+
 export type ConfigSource = 'default' | 'cached' | 'live';
 
 export interface RuntimeConfig {
@@ -64,8 +79,9 @@ export interface RuntimeConfig {
   routeFilter: string;
   routeById: Record<string, RouteInfo>;
 
-  framesBase: string; // e.g. https://trains.chrisnewell.net/frames/
-  mbtaApi: string; // e.g. https://api-v3.mbta.com
+  framesBase: string;
+  mbtaApi: string;
+  iconsBase: string;
 
   live: {
     pollIntervalMs: number;
@@ -80,14 +96,27 @@ export interface RuntimeConfig {
     maxHopMi: number;
     breakOnRouteChange: boolean;
   };
-  heritageUnits: string[];
+  heritageUnits: HeritageUnitInfo[];
+  heritageById: Record<string, HeritageUnitInfo>;
   attribution: { data: string; map: string };
 }
 
 // --- Validation + normalization ----------------------------------------------
 
 /** Highest schema version this build understands. */
-export const SUPPORTED_SCHEMA_VERSION = 1;
+export const SUPPORTED_SCHEMA_VERSION = 2;
+
+// Ultimate safety-net scalars, used only if a (malformed) config omits them and
+// no fallback is supplied. Route/color/model/icon values NEVER come from here —
+// those come only from the config (live or vendored default).
+const ULTIMATE_LIVE = {
+  pollIntervalMs: 60_000,
+  streamWatchdogMs: 60_000,
+  staleAfterMs: 120_000,
+  frameCommitIntervalMs: 60_000,
+  maxSessionFrames: 600,
+};
+const ULTIMATE_TRAILS = { gapBreakMin: 15, maxImpliedMph: 90, maxHopMi: 7, breakOnRouteChange: true };
 
 function short(name: string): string {
   return name.replace(/\s+Line$/i, '').trim();
@@ -95,8 +124,8 @@ function short(name: string): string {
 
 /**
  * Validate a parsed JSON value as a RawConfig. Returns it typed, or throws with
- * a reason. Kept strict on the fields the app depends on (routes, endpoints)
- * and lenient on the rest (falls back to defaults per-field in normalize()).
+ * a reason. Strict on the fields the app depends on (routes, endpoints,
+ * heritage_units), lenient on the rest (per-field fallback in normalize()).
  */
 export function validateRawConfig(value: unknown): RawConfig {
   if (!value || typeof value !== 'object') throw new Error('config not an object');
@@ -114,14 +143,27 @@ export function validateRawConfig(value: unknown): RawConfig {
   if (!c.endpoints || typeof c.endpoints.frames_base !== 'string' || typeof c.endpoints.mbta_api !== 'string') {
     throw new Error('endpoints missing');
   }
+  if (!Array.isArray(c.heritage_units)) throw new Error('heritage_units missing');
+  for (const h of c.heritage_units) {
+    if (
+      !h ||
+      typeof h.unit !== 'string' ||
+      typeof h.model !== 'string' ||
+      typeof h.scheme !== 'string' ||
+      typeof h.icon !== 'string'
+    ) {
+      throw new Error('heritage_units entry missing unit/model/scheme/icon');
+    }
+  }
   return c as RawConfig;
 }
 
 /**
- * Convert a validated RawConfig into the normalized RuntimeConfig, filling any
- * soft-missing sub-objects from `fallback` (usually DEFAULT_CONFIG).
+ * Convert a validated RawConfig into the normalized RuntimeConfig. `fallback`
+ * (usually DEFAULT_CONFIG) fills soft-missing scalar sub-objects; omit it when
+ * normalizing the vendored default itself (it's complete).
  */
-export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback: RuntimeConfig): RuntimeConfig {
+export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback?: RuntimeConfig): RuntimeConfig {
   const routes: RouteInfo[] = raw.routes.map((r) => ({
     id: r.id,
     name: r.name,
@@ -134,9 +176,21 @@ export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback: 
   const routeById: Record<string, RouteInfo> = {};
   for (const r of routes) routeById[r.id] = r;
 
+  const heritageUnits: HeritageUnitInfo[] = raw.heritage_units.map((h) => ({
+    unit: String(h.unit),
+    model: h.model,
+    scheme: h.scheme,
+    icon: h.icon,
+  }));
+  const heritageById: Record<string, HeritageUnitInfo> = {};
+  for (const h of heritageUnits) heritageById[h.unit] = h;
+
   const live = raw.live ?? {};
   const trails = raw.trails ?? {};
-  const sec = (v: number | undefined, defMs: number) => (typeof v === 'number' ? v * 1000 : defMs);
+  const sec = (v: number | undefined, def: number) => (typeof v === 'number' ? v * 1000 : def);
+  const num = (v: number | undefined, def: number) => (typeof v === 'number' ? v : def);
+  const fl = fallback?.live ?? ULTIMATE_LIVE;
+  const ft = fallback?.trails ?? ULTIMATE_TRAILS;
 
   return {
     schemaVersion: raw.schema_version,
@@ -148,31 +202,26 @@ export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback: 
     routeById,
     framesBase: raw.endpoints.frames_base,
     mbtaApi: raw.endpoints.mbta_api,
+    iconsBase: raw.endpoints.icons_base ?? fallback?.iconsBase ?? '',
     live: {
-      pollIntervalMs: sec(live.poll_interval_sec, fallback.live.pollIntervalMs),
-      streamWatchdogMs: sec(live.stream_watchdog_sec, fallback.live.streamWatchdogMs),
-      staleAfterMs: sec(live.stale_after_sec, fallback.live.staleAfterMs),
-      frameCommitIntervalMs: sec(live.frame_commit_interval_sec, fallback.live.frameCommitIntervalMs),
-      maxSessionFrames:
-        typeof live.max_session_frames === 'number' ? live.max_session_frames : fallback.live.maxSessionFrames,
+      pollIntervalMs: sec(live.poll_interval_sec, fl.pollIntervalMs),
+      streamWatchdogMs: sec(live.stream_watchdog_sec, fl.streamWatchdogMs),
+      staleAfterMs: sec(live.stale_after_sec, fl.staleAfterMs),
+      frameCommitIntervalMs: sec(live.frame_commit_interval_sec, fl.frameCommitIntervalMs),
+      maxSessionFrames: num(live.max_session_frames, fl.maxSessionFrames),
     },
     trails: {
-      gapBreakMin: typeof trails.gap_break_min === 'number' ? trails.gap_break_min : fallback.trails.gapBreakMin,
-      maxImpliedMph:
-        typeof trails.max_implied_mph === 'number' ? trails.max_implied_mph : fallback.trails.maxImpliedMph,
-      maxHopMi: typeof trails.max_hop_mi === 'number' ? trails.max_hop_mi : fallback.trails.maxHopMi,
+      gapBreakMin: num(trails.gap_break_min, ft.gapBreakMin),
+      maxImpliedMph: num(trails.max_implied_mph, ft.maxImpliedMph),
+      maxHopMi: num(trails.max_hop_mi, ft.maxHopMi),
       breakOnRouteChange:
-        typeof trails.break_on_route_change === 'boolean'
-          ? trails.break_on_route_change
-          : fallback.trails.breakOnRouteChange,
+        typeof trails.break_on_route_change === 'boolean' ? trails.break_on_route_change : ft.breakOnRouteChange,
     },
-    heritageUnits:
-      Array.isArray(raw.heritage_units) && raw.heritage_units.length > 0
-        ? raw.heritage_units.map(String)
-        : fallback.heritageUnits,
+    heritageUnits,
+    heritageById,
     attribution: {
-      data: raw.attribution?.data ?? fallback.attribution.data,
-      map: raw.attribution?.map ?? fallback.attribution.map,
+      data: raw.attribution?.data ?? fallback?.attribution.data ?? '',
+      map: raw.attribution?.map ?? fallback?.attribution.map ?? '',
     },
   };
 }

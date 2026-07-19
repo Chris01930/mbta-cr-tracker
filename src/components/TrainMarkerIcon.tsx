@@ -1,14 +1,14 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { heritageIcon } from '../constants/heritage';
+import { heritageIconUrl } from '../constants/heritage';
 
 /**
  * Visual for a single train marker.
  *
  * - Standard train: a route-colored chevron pointing along the vehicle's
  *   bearing.
- * - Heritage-paired consist: the unit's loco illustration instead of the
- *   chevron (front-elevation art, shown upright).
+ * - Heritage-paired consist: the unit's loco icon (a hosted PNG loaded by URL;
+ *   React Native caches it by URI) instead of the chevron, shown upright.
  *
  * The label below ALWAYS shows the cab car number — the icon conveys which
  * heritage unit is on the consist, the badge conveys the cab.
@@ -23,13 +23,13 @@ interface Props {
 }
 
 export function TrainMarkerIcon({ color, bearing, label, unit, selected }: Props) {
-  const icon = heritageIcon(unit);
+  const iconUrl = heritageIconUrl(unit);
 
   return (
     <View style={styles.wrap} pointerEvents="none">
-      {icon ? (
+      {iconUrl ? (
         <View style={[styles.locoWrap, selected && styles.locoSelected]}>
-          <Image source={icon} style={styles.loco} resizeMode="contain" />
+          <Image source={{ uri: iconUrl }} style={styles.loco} resizeMode="contain" />
         </View>
       ) : (
         <View style={[styles.puck, { backgroundColor: color }, selected && styles.puckSelected]}>
