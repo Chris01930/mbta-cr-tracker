@@ -125,7 +125,7 @@ eas build --platform ios       # or android, or "all"
 ```
 
 Bundle identifiers are set in [`app.json`](app.json)
-(`net.chrisnewell.mbtacr`) — change them to your own before submitting.
+(`net.chrisnewell.highballboston`) — change them to your own before submitting.
 
 ## Not yet implemented (documented follow-ups)
 

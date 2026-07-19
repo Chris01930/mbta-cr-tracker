@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "MBTA CR Tracker",
+    "name": "Highball Boston",
     "slug": "highball-boston",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "mbtacr",
+    "scheme": "highballboston",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "net.chrisnewell.mbtacr",
+      "bundleIdentifier": "net.chrisnewell.highballboston",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Used to center the map on your location and resolve the nearest Commuter Rail station.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "net.chrisnewell.mbtacr",
+      "package": "net.chrisnewell.highballboston",
       "adaptiveIcon": {
         "backgroundColor": "#80276C",
         "foregroundImage": "./assets/android-icon-foreground.png",
