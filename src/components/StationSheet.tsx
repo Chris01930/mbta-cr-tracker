@@ -14,10 +14,18 @@ export interface StationTarget {
   lat: number;
 }
 
+type DirFilter = 'all' | 'inbound' | 'outbound';
+const DIR_FILTERS: { key: DirFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'inbound', label: 'Inbound' },
+  { key: 'outbound', label: 'Outbound' },
+];
+
 export function StationSheet({ target, onClose }: { target: StationTarget | null; onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<ScheduleRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<DirFilter>('all');
 
   useEffect(() => {
     if (!target) return;
@@ -25,6 +33,7 @@ export function StationSheet({ target, onClose }: { target: StationTarget | null
     setLoading(true);
     setRows(null);
     setError(null);
+    setFilter('all');
     (async () => {
       try {
         const station = await resolveStation(target.lat, target.lng);
@@ -68,25 +77,55 @@ export function StationSheet({ target, onClose }: { target: StationTarget | null
           {loading && <ActivityIndicator color="#F5C518" style={{ marginTop: 20 }} />}
           {error && <Text style={styles.note}>{error}</Text>}
           {rows && (
-            <FlatList
-              data={rows}
-              keyExtractor={(_, i) => String(i)}
-              ListEmptyComponent={<Text style={styles.note}>No more trains today.</Text>}
-              renderItem={({ item }) => (
-                <View style={styles.row}>
-                  <View style={{ flexShrink: 1 }}>
-                    <Text style={styles.dest}>{item.headsign ?? '—'}</Text>
-                    <Text style={styles.trn}>{item.tripName ? `Train ${item.tripName}` : ''}</Text>
+            <>
+              <View style={styles.segment}>
+                {DIR_FILTERS.map((f) => {
+                  const active = filter === f.key;
+                  return (
+                    <TouchableOpacity
+                      key={f.key}
+                      style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                      onPress={() => setFilter(f.key)}
+                    >
+                      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{f.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <FlatList
+                data={rows.filter((r) => matchesFilter(r, filter))}
+                keyExtractor={(_, i) => String(i)}
+                ListEmptyComponent={<Text style={styles.note}>No more trains today.</Text>}
+                renderItem={({ item }) => (
+                  <View style={styles.row}>
+                    <View style={styles.rowLeft}>
+                      <View style={[styles.dirTag, item.directionId === 1 ? styles.dirIn : styles.dirOut]}>
+                        <Text style={styles.dirTagText}>{item.directionId === 1 ? 'IN' : 'OUT'}</Text>
+                      </View>
+                      <View style={{ flexShrink: 1 }}>
+                        <Text style={styles.dest} numberOfLines={1}>
+                          {item.headsign ?? '—'}
+                        </Text>
+                        <Text style={styles.trn}>{item.tripName ? `Train ${item.tripName}` : ''}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.time}>{formatClock(item.time)}</Text>
                   </View>
-                  <Text style={styles.time}>{formatClock(item.time)}</Text>
-                </View>
-              )}
-            />
+                )}
+              />
+            </>
           )}
         </View>
       </View>
     </Modal>
   );
+}
+
+// Inbound = toward Boston (direction_id 1), Outbound = away (direction_id 0).
+function matchesFilter(r: ScheduleRow, filter: DirFilter): boolean {
+  if (filter === 'inbound') return r.directionId === 1;
+  if (filter === 'outbound') return r.directionId === 0;
+  return true;
 }
 
 const styles = StyleSheet.create({
@@ -103,6 +142,17 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   title: { color: '#fff', fontSize: 18, fontWeight: '800', flexShrink: 1, marginRight: 10 },
   close: { color: '#F5C518', fontSize: 15, fontWeight: '700' },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 9,
+    padding: 3,
+    marginBottom: 10,
+  },
+  segmentBtn: { flex: 1, paddingVertical: 7, borderRadius: 7, alignItems: 'center' },
+  segmentBtnActive: { backgroundColor: '#80276C' },
+  segmentText: { color: '#B9BEC7', fontSize: 13, fontWeight: '700' },
+  segmentTextActive: { color: '#fff' },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -111,6 +161,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  dirTag: {
+    width: 34,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  dirIn: { backgroundColor: 'rgba(46,204,113,0.22)' },
+  dirOut: { backgroundColor: 'rgba(52,152,219,0.22)' },
+  dirTagText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   dest: { color: '#fff', fontSize: 14, fontWeight: '600' },
   trn: { color: '#8A909B', fontSize: 12, marginTop: 2 },
   time: { color: '#F5C518', fontSize: 15, fontWeight: '700', marginLeft: 10 },

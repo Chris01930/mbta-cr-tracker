@@ -211,6 +211,8 @@ export interface ScheduleRow {
   headsign: string | null;
   /** arrival_time || departure_time (ISO). */
   time: string;
+  /** MBTA direction_id: 0 = Outbound (from Boston), 1 = Inbound (to Boston). */
+  directionId: number | null;
 }
 
 /** Today's timetable at a station (parent id). Cache ~10 min per station. */
@@ -222,7 +224,7 @@ export async function loadSchedules(
   url.searchParams.set('filter[stop]', stationId);
   url.searchParams.set('filter[route]', CR_ROUTE_FILTER);
   url.searchParams.set('include', 'trip');
-  url.searchParams.set('fields[schedule]', 'arrival_time,departure_time');
+  url.searchParams.set('fields[schedule]', 'arrival_time,departure_time,direction_id');
   url.searchParams.set('fields[trip]', 'name,headsign');
   withKey(url);
 
@@ -242,7 +244,12 @@ export async function loadSchedules(
     if (!time) continue;
     const tripId = s.relationships?.trip?.data?.id;
     const trip = tripId ? trips.get(tripId) : undefined;
-    out.push({ tripName: trip?.name ?? null, headsign: trip?.headsign ?? null, time });
+    out.push({
+      tripName: trip?.name ?? null,
+      headsign: trip?.headsign ?? null,
+      time,
+      directionId: typeof a.direction_id === 'number' ? (a.direction_id as number) : null,
+    });
   }
   out.sort((x, y) => x.time.localeCompare(y.time));
   return out;
