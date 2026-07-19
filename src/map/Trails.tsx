@@ -3,13 +3,15 @@ import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import { useStore } from '../state/store';
 import { useConfigStore } from '../config/configStore';
 import { buildTrails } from '../lib/trails';
+import { ALL_VISIBLE, type VisibilityFilter } from '../lib/trains';
 
 /**
  * Movement trails overlay. Source frames are the live session history (capped)
  * or, in playback, the day's frames up to the current scrub position — so
  * trails grow as you play. Colored per route; rendered under the train markers.
+ * `filter` hides trails whose train class is toggled off (ghost / non-revenue).
  */
-export function Trails({ includeGhosts = true }: { includeGhosts?: boolean }) {
+export function Trails({ filter = ALL_VISIBLE }: { filter?: VisibilityFilter }) {
   const mode = useStore((s) => s.mode);
   const liveFrames = useStore((s) => s.frames);
   const playbackDay = useStore((s) => s.playbackDay);
@@ -28,8 +30,8 @@ export function Trails({ includeGhosts = true }: { includeGhosts?: boolean }) {
   }, [mode, playbackDay, playbackIndex, liveFrames, cap]);
 
   const data = useMemo(
-    () => buildTrails(frames, trailsCfg, includeGhosts),
-    [frames, trailsCfg, includeGhosts],
+    () => buildTrails(frames, trailsCfg, filter),
+    [frames, trailsCfg, filter],
   );
 
   return (

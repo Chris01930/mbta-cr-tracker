@@ -25,6 +25,25 @@ export function trainTitle(t: Train): string {
 }
 
 /**
+ * Which classes of train are currently visible. Ghost is orthogonal to revenue
+ * status (a ghost may be revenue or non-revenue), so the flags compose: a train
+ * shows only if its ghost state and its revenue state are both enabled.
+ */
+export interface VisibilityFilter {
+  ghosts: boolean;
+  revenue: boolean;
+  nonRevenue: boolean;
+}
+
+export const ALL_VISIBLE: VisibilityFilter = { ghosts: true, revenue: true, nonRevenue: true };
+
+/** Whether a train passes the current visibility filter (markers + trails). */
+export function trainVisible(t: Train, f: VisibilityFilter): boolean {
+  if (t.isGhost && !f.ghosts) return false;
+  return t.isNonRevenue ? f.nonRevenue : f.revenue;
+}
+
+/**
  * Collapse duplicate identities (a cab appearing twice in one poll — a feed
  * quirk, or a ghost sharing a label) to one entry, last occurrence winning
  * (freshest position). Also drops non-plottable rows. Callers memoize on the

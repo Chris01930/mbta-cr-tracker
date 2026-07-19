@@ -64,6 +64,8 @@ interface AppState {
   showRoutes: boolean; // CR network line overlay (off = trails more visible)
   showStations: boolean; // CR station dots
   showGhosts: boolean; // ghost (no-cab) vehicles
+  showRevenue: boolean; // in-service (revenue) trains
+  showNonRevenue: boolean; // deadhead / non-revenue trains
 
   // Actions
   hydrateHeritage: () => Promise<void>;
@@ -90,15 +92,33 @@ interface AppState {
   toggleRoutes: () => void;
   toggleStations: () => void;
   toggleGhosts: () => void;
+  toggleRevenue: () => void;
+  toggleNonRevenue: () => void;
   hydrateLayerPrefs: () => Promise<void>;
 }
 
+type LayerPrefs = Pick<
+  AppState,
+  'showTrails' | 'showRoutes' | 'showStations' | 'showGhosts' | 'showRevenue' | 'showNonRevenue'
+>;
+
+const DEFAULT_LAYER_PREFS: LayerPrefs = {
+  showTrails: true,
+  showRoutes: true,
+  showStations: true,
+  showGhosts: true,
+  showRevenue: true,
+  showNonRevenue: true,
+};
+
 function persistLayerPrefs(s: AppState): void {
-  const prefs = {
+  const prefs: LayerPrefs = {
     showTrails: s.showTrails,
     showRoutes: s.showRoutes,
     showStations: s.showStations,
     showGhosts: s.showGhosts,
+    showRevenue: s.showRevenue,
+    showNonRevenue: s.showNonRevenue,
   };
   void AsyncStorage.setItem(LAYER_PREFS_KEY, JSON.stringify(prefs));
 }
@@ -124,10 +144,7 @@ export const useStore = create<AppState>((set, get) => ({
   predictionsAsOf: null,
   predictionsLoading: false,
   heritage: {},
-  showTrails: true,
-  showRoutes: true,
-  showStations: true,
-  showGhosts: true,
+  ...DEFAULT_LAYER_PREFS,
 
   hydrateHeritage: async () => {
     try {
@@ -275,17 +292,27 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ showGhosts: !s.showGhosts }));
     persistLayerPrefs(get());
   },
+  toggleRevenue: () => {
+    set((s) => ({ showRevenue: !s.showRevenue }));
+    persistLayerPrefs(get());
+  },
+  toggleNonRevenue: () => {
+    set((s) => ({ showNonRevenue: !s.showNonRevenue }));
+    persistLayerPrefs(get());
+  },
 
   hydrateLayerPrefs: async () => {
     try {
       const raw = await AsyncStorage.getItem(LAYER_PREFS_KEY);
       if (!raw) return;
-      const p = JSON.parse(raw) as Partial<Record<'showTrails' | 'showRoutes' | 'showStations' | 'showGhosts', boolean>>;
+      const p = JSON.parse(raw) as Partial<LayerPrefs>;
       set({
-        showTrails: p.showTrails ?? true,
-        showRoutes: p.showRoutes ?? true,
-        showStations: p.showStations ?? true,
-        showGhosts: p.showGhosts ?? true,
+        showTrails: p.showTrails ?? DEFAULT_LAYER_PREFS.showTrails,
+        showRoutes: p.showRoutes ?? DEFAULT_LAYER_PREFS.showRoutes,
+        showStations: p.showStations ?? DEFAULT_LAYER_PREFS.showStations,
+        showGhosts: p.showGhosts ?? DEFAULT_LAYER_PREFS.showGhosts,
+        showRevenue: p.showRevenue ?? DEFAULT_LAYER_PREFS.showRevenue,
+        showNonRevenue: p.showNonRevenue ?? DEFAULT_LAYER_PREFS.showNonRevenue,
       });
     } catch {
       // ignore corrupt prefs — defaults stand

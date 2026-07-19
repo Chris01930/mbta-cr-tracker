@@ -2,20 +2,21 @@ import React, { useMemo } from 'react';
 import { Marker } from '@maplibre/maplibre-react-native';
 import { routeColor } from '../constants/routes';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
-import { dedupeTrains, trainKey, trainLabel } from '../lib/trains';
+import { ALL_VISIBLE, dedupeTrains, trainKey, trainLabel, trainVisible, type VisibilityFilter } from '../lib/trains';
 import { TrainMarkerIcon } from '../components/TrainMarkerIcon';
 
 /**
  * Renders one tappable Marker per plottable train (ghosts included, keyed by
  * their vehicle id). Markers repaint immediately when a heritage pairing
- * changes. Selection is by tracking key, so ghosts are tappable too.
+ * changes. Selection is by tracking key, so ghosts are tappable too. `filter`
+ * drops train classes toggled off (ghost / revenue / non-revenue).
  */
 export function TrainMarkers({
   onSelect,
-  showGhosts = true,
+  filter = ALL_VISIBLE,
 }: {
   onSelect: (key: string) => void;
-  showGhosts?: boolean;
+  filter?: VisibilityFilter;
 }) {
   const trains = useDisplayedTrains();
   const heritage = useStore((s) => s.heritage);
@@ -24,11 +25,11 @@ export function TrainMarkers({
   const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
 
   // Dedupe (by tracking key) so a repeated entity yields one marker with a
-  // unique id, and drop ghosts when the toggle is off. Memoized on `trains` +
-  // `showGhosts` so the store snapshot stays a stable reference.
+  // unique id, and drop classes toggled off. Memoized on `trains` + `filter` so
+  // the store snapshot stays a stable reference.
   const unique = useMemo(
-    () => dedupeTrains(trains).filter((t) => showGhosts || !t.isGhost),
-    [trains, showGhosts],
+    () => dedupeTrains(trains).filter((t) => trainVisible(t, filter)),
+    [trains, filter],
   );
 
   return (

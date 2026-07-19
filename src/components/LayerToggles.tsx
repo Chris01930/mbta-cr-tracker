@@ -3,17 +3,22 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useStore } from '../state/store';
 
 /**
- * Compact map-layer toggles (floating, top-right). Trails on/off and the CR
- * route overlay on/off — turning routes off makes trails easier to read.
+ * Compact map-layer toggles (floating, top-right). Two groups: map layers
+ * (trails / routes / stations) and train-class filters (revenue / non-revenue /
+ * ghosts), which hide those classes from both the markers and the trails.
  */
 export function LayerToggles() {
   const showTrails = useStore((s) => s.showTrails);
   const showRoutes = useStore((s) => s.showRoutes);
   const showStations = useStore((s) => s.showStations);
+  const showRevenue = useStore((s) => s.showRevenue);
+  const showNonRevenue = useStore((s) => s.showNonRevenue);
   const showGhosts = useStore((s) => s.showGhosts);
   const toggleTrails = useStore((s) => s.toggleTrails);
   const toggleRoutes = useStore((s) => s.toggleRoutes);
   const toggleStations = useStore((s) => s.toggleStations);
+  const toggleRevenue = useStore((s) => s.toggleRevenue);
+  const toggleNonRevenue = useStore((s) => s.toggleNonRevenue);
   const toggleGhosts = useStore((s) => s.toggleGhosts);
 
   return (
@@ -23,6 +28,10 @@ export function LayerToggles() {
       <Toggle label="Routes" on={showRoutes} onPress={toggleRoutes} />
       <View style={styles.divider} />
       <Toggle label="Stations" on={showStations} onPress={toggleStations} />
+      <View style={styles.groupDivider} />
+      <Toggle label="Revenue" on={showRevenue} onPress={toggleRevenue} />
+      <View style={styles.divider} />
+      <Toggle label="Non-revenue" on={showNonRevenue} onPress={toggleNonRevenue} />
       <View style={styles.divider} />
       <Toggle label="Ghosts" on={showGhosts} onPress={toggleGhosts} />
     </View>
@@ -52,4 +61,5 @@ const styles = StyleSheet.create({
   label: { color: '#8A909B', fontSize: 12, fontWeight: '700' },
   labelOn: { color: '#fff' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)', marginHorizontal: 8 },
+  groupDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.28)', marginHorizontal: 4, marginVertical: 2 },
 });

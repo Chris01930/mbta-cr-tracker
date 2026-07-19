@@ -1,4 +1,5 @@
 import { routeColor } from '../constants/routes';
+import { ALL_VISIBLE, trainVisible, type VisibilityFilter } from './trains';
 import type { Frame } from '../types';
 
 /**
@@ -39,17 +40,18 @@ type TrailFC = GeoJSON.FeatureCollection<GeoJSON.LineString, { color: string }>;
  * Build a GeoJSON FeatureCollection of trail segments from frame history.
  * Grouped by tracking identity — cab label, or the ghost's `vid`. Live ghosts
  * (distinct vids) get distinct trails; pre-2026-07-19 ghosts lack a vid and are
- * skipped (no stable cross-frame identity). `includeGhosts=false` drops ghosts.
+ * skipped (no stable cross-frame identity). Fixes are filtered per-snapshot by
+ * `filter` (ghost / revenue / non-revenue), so a trail breaks at the point a
+ * train's class stops being shown.
  */
-export function buildTrails(frames: Frame[], cfg: TrailsTuning, includeGhosts = true): TrailFC {
-  // 1. Collect each entity's fixes in time order (skip non-plottable).
+export function buildTrails(frames: Frame[], cfg: TrailsTuning, filter: VisibilityFilter = ALL_VISIBLE): TrailFC {
+  // 1. Collect each entity's fixes in time order (skip non-plottable / filtered).
   const byId = new Map<string, Fix[]>();
   for (const frame of frames) {
     const frameT = Date.parse(frame.time);
     for (const tr of frame.trains) {
       if (typeof tr.lat !== 'number' || typeof tr.lon !== 'number') continue;
-      const isGhost = tr.cab == null;
-      if (isGhost && !includeGhosts) continue;
+      if (!trainVisible(tr, filter)) continue;
       const id = tr.cab ?? tr.vid ?? null; // vid-less ghost -> no stable trail
       if (!id) continue;
       const t = tr.upd ? Date.parse(tr.upd) : frameT;

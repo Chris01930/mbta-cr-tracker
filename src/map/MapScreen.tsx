@@ -1,9 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { CONFIG } from '../config';
 import { useStore } from '../state/store';
+import type { VisibilityFilter } from '../lib/trains';
 import { usePlayback } from '../hooks/usePlayback';
 import { CrNetwork } from './CrNetwork';
 import { Trails } from './Trails';
@@ -30,10 +31,18 @@ export function MapScreen() {
   const showRoutes = useStore((s) => s.showRoutes);
   const showStations = useStore((s) => s.showStations);
   const showGhosts = useStore((s) => s.showGhosts);
+  const showRevenue = useStore((s) => s.showRevenue);
+  const showNonRevenue = useStore((s) => s.showNonRevenue);
   const [heritageOpen, setHeritageOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [station, setStation] = useState<StationTarget | null>(null);
+
+  // One stable filter object for markers + trails (so their memos don't churn).
+  const filter = useMemo<VisibilityFilter>(
+    () => ({ ghosts: showGhosts, revenue: showRevenue, nonRevenue: showNonRevenue }),
+    [showGhosts, showRevenue, showNonRevenue],
+  );
 
   // Tapping a marker also registers as a map tap on iOS; ignore that map tap
   // (which would otherwise deselect) briefly after a marker tap wins.
@@ -78,8 +87,8 @@ export function MapScreen() {
           showStations={showStations}
           onStationPress={(name, lng, lat) => setStation({ name, lng, lat })}
         />
-        {showTrails && <Trails includeGhosts={showGhosts} />}
-        <TrainMarkers onSelect={handleMarkerSelect} showGhosts={showGhosts} />
+        {showTrails && <Trails filter={filter} />}
+        <TrainMarkers onSelect={handleMarkerSelect} filter={filter} />
       </Map>
 
       {/* Ambient cue: amber frame around the map while viewing history. */}
