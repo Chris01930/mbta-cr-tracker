@@ -18,6 +18,13 @@ const { withXcodeProject } = require('@expo/config-plugins');
 module.exports = function withIosSigningTeam(config, props = {}) {
   const teamId = props.appleTeamId || process.env.APPLE_TEAM_ID;
 
+  // EAS injects its own managed distribution signing (manual style) after
+  // prebuild; forcing automatic signing here would conflict. Only apply for
+  // local builds.
+  if (process.env.EAS_BUILD) {
+    return config;
+  }
+
   return withXcodeProject(config, (cfg) => {
     if (!teamId) {
       // No team configured — leave signing as-is (e.g. CI that signs elsewhere).
