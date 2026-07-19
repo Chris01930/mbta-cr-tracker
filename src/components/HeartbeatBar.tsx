@@ -15,10 +15,12 @@ export function HeartbeatBar({
   onOpenHeritage,
   onOpenDates,
   onOpenAbout,
+  onOpenRoster,
 }: {
   onOpenHeritage: () => void;
   onOpenDates: () => void;
   onOpenAbout: () => void;
+  onOpenRoster: () => void;
 }) {
   const mode = useStore((s) => s.mode);
   const heartbeat = useStore((s) => s.heartbeat);
@@ -45,6 +47,9 @@ export function HeartbeatBar({
           <TouchableOpacity style={styles.goLiveBtn} onPress={exitToLive} accessibilityLabel="Go live">
             <Text style={styles.goLiveText}>● Go Live</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onOpenRoster} accessibilityLabel="Train list">
+            <Text style={styles.iconText}>☰</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
             <Text style={styles.iconText}>Day</Text>
           </TouchableOpacity>
@@ -58,17 +63,20 @@ export function HeartbeatBar({
 
   return (
     <View style={styles.bar} pointerEvents="box-none">
-      <View style={styles.left}>
+      <TouchableOpacity style={styles.left} onPress={onOpenRoster} accessibilityLabel="Train list">
         <View style={[styles.dot, { backgroundColor: heartbeatColor(heartbeat) }]} />
         <Text style={styles.status}>{heartbeatLabel(heartbeat)}</Text>
         <Text style={styles.meta}>
           {count} train{count === 1 ? '' : 's'}
           {lastDataMs != null ? ` · ${agoLabel(lastDataMs)}` : ''}
         </Text>
-      </View>
+      </TouchableOpacity>
       <View style={styles.actions}>
         <TouchableOpacity style={styles.infoBtn} onPress={onOpenAbout} accessibilityLabel="About">
           <Text style={styles.infoText}>ⓘ</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconBtn} onPress={onOpenRoster} accessibilityLabel="Train list">
+          <Text style={styles.iconText}>☰</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
           <Text style={styles.iconText}>History</Text>
