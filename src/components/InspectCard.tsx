@@ -4,7 +4,8 @@ import { loadPredictions, type PredictionRow } from '../api/mbta';
 import { routeColor, routeShort } from '../constants/routes';
 import { heritageInfo, heritageName } from '../constants/heritage';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
-import { findByCab, mphLabel, prettyStatus } from '../lib/format';
+import { findByKey, mphLabel, prettyStatus } from '../lib/format';
+import { trainKey, trainTitle } from '../lib/trains';
 import { formatClock } from '../lib/time';
 
 /**
@@ -17,7 +18,7 @@ import { formatClock } from '../lib/time';
  */
 export function InspectCard() {
   const trains = useDisplayedTrains();
-  const selectedCab = useStore((s) => s.selectedCab);
+  const selectedKey = useStore((s) => s.selectedKey);
   const stage = useStore((s) => s.inspectStage);
   const cycleInspect = useStore((s) => s.cycleInspect);
   const heritage = useStore((s) => s.heritage);
@@ -27,7 +28,7 @@ export function InspectCard() {
   const setPredictions = useStore((s) => s.setPredictions);
   const setPredictionsLoading = useStore((s) => s.setPredictionsLoading);
 
-  const train = findByCab(trains, selectedCab);
+  const train = findByKey(trains, selectedKey);
 
   // Which heritage unit (if any) is paired to this cab.
   const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
@@ -63,19 +64,22 @@ export function InspectCard() {
   if (!train || stage < 1) return null;
 
   const color = routeColor(train.route);
-  const cab = train.cab ?? '?';
-  const trn = train.train ?? '—';
 
   return (
-    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => cycleInspect(train.cab ?? '')}>
+    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => cycleInspect(trainKey(train))}>
       {/* Stage 1+: chip */}
       <View style={styles.chipRow}>
         <View style={[styles.routeDot, { backgroundColor: color }]} />
-        <Text style={styles.chip}>
-          Cab {cab} · Trn {trn}
-        </Text>
+        <Text style={styles.chip}>{trainTitle(train)}</Text>
         <Text style={styles.route}>{routeShort(train.route)}</Text>
       </View>
+
+      {/* Ghost tag (whenever selected) */}
+      {train.isGhost && (
+        <View style={styles.ghostTag}>
+          <Text style={styles.ghostText}>GHOST (no trip/label)</Text>
+        </View>
+      )}
 
       {/* Heritage tag (whenever paired, from stage 1) */}
       {unit && (
@@ -109,7 +113,9 @@ export function InspectCard() {
       {/* Stage 3: next stops */}
       {stage >= 3 && (
         <View style={styles.stops}>
-          {!train.tripId ? (
+          {train.isGhost ? (
+            <Text style={styles.noStops}>No trip data — this is a ghost (unassigned) vehicle.</Text>
+          ) : !train.tripId ? (
             <Text style={styles.noStops}>Next stops are available in live mode only.</Text>
           ) : predictionsAsOf == null ? (
             <View style={styles.loadingRow}>
@@ -220,6 +226,18 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   nonRevText: { color: '#F5A623', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  ghostTag: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(149,165,166,0.18)',
+    borderColor: '#95A5A6',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  ghostText: { color: '#C9CDD4', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   details: { marginTop: 10, gap: 4 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   detailLabel: { color: '#8A909B', fontSize: 13 },

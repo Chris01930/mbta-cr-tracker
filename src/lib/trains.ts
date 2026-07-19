@@ -1,12 +1,27 @@
 import type { Train } from '../types';
 
 /**
- * Stable identity for a train across polls: cab label is primary (a cab runs
- * many trains per day); ghosts (null label) fall back to trip/position. Shared
- * by every consumer so dedupe and marker keys agree.
+ * Stable tracking identity for a train: cab label when present, else the
+ * vehicle id (`vid`) for ghosts. Two simultaneous live ghosts always differ
+ * (distinct vids). Pre-2026-07-19 ghosts lack vid — fall back to a per-snapshot
+ * position surrogate (distinct markers now; imperfect history, but never a
+ * silent merge of live ghosts). Shared by dedupe, marker keys, and selection.
  */
 export function trainKey(t: Train): string {
-  return `cab:${t.cab ?? `ghost:${t.tripId ?? t.train ?? `${t.lat},${t.lon}`}`}`;
+  if (t.cab) return `cab:${t.cab}`;
+  if (t.vid) return `vid:${t.vid}`;
+  return `pos:${t.lat},${t.lon}`;
+}
+
+/** Compact marker-badge label: cab number, else the ghost's vid, else "Ghost". */
+export function trainLabel(t: Train): string {
+  return t.cab ?? t.vid ?? 'Ghost';
+}
+
+/** Full display title used in the inspect chip. */
+export function trainTitle(t: Train): string {
+  if (t.cab) return `Cab ${t.cab} · Trn ${t.train ?? '—'}`;
+  return t.vid ? `Ghost ${t.vid}` : 'Ghost';
 }
 
 /**

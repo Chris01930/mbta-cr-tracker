@@ -28,6 +28,16 @@ export interface Train {
    * Display-only — never affects fetching, pairing, or trails.
    */
   isNonRevenue: boolean;
+  /**
+   * Ghost = a vehicle with no cab label (logged onto no trip; yard/positioning
+   * move). `true` when cab == null.
+   */
+  isGhost: boolean;
+  /**
+   * MBTA vehicle resource id. Carried for ghosts as their tracking key (frames
+   * `vid`, or the live vehicle resource id). Absent for pre-2026-07-19 ghosts.
+   */
+  vid?: string | null;
   /** Live-only: trip id, needed for predictions. Absent in archive frames. */
   tripId?: string | null;
   /** Live-only: speed in meters/second (×2.23694 for mph); often null. */

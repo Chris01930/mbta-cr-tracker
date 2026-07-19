@@ -10,9 +10,11 @@ export function LayerToggles() {
   const showTrails = useStore((s) => s.showTrails);
   const showRoutes = useStore((s) => s.showRoutes);
   const showStations = useStore((s) => s.showStations);
+  const showGhosts = useStore((s) => s.showGhosts);
   const toggleTrails = useStore((s) => s.toggleTrails);
   const toggleRoutes = useStore((s) => s.toggleRoutes);
   const toggleStations = useStore((s) => s.toggleStations);
+  const toggleGhosts = useStore((s) => s.toggleGhosts);
 
   return (
     <View style={styles.panel}>
@@ -21,6 +23,8 @@ export function LayerToggles() {
       <Toggle label="Routes" on={showRoutes} onPress={toggleRoutes} />
       <View style={styles.divider} />
       <Toggle label="Stations" on={showStations} onPress={toggleStations} />
+      <View style={styles.divider} />
+      <Toggle label="Ghosts" on={showGhosts} onPress={toggleGhosts} />
     </View>
   );
 }

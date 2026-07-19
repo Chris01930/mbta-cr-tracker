@@ -59,8 +59,8 @@ describe('non-revenue: live path (attributes.revenue)', () => {
 
 describe('non-revenue: marker style differs', () => {
   test('standard marker is a solid dot vs a hollow ring', () => {
-    const revenue = puckAppearance('#4b7bd6', false);
-    const nonRev = puckAppearance('#4b7bd6', true);
+    const revenue = puckAppearance('#4b7bd6', false, false);
+    const nonRev = puckAppearance('#4b7bd6', true, false);
     // revenue: solid dot filled with the route color
     expect(revenue.backgroundColor).toBe('#4b7bd6');
     // non-revenue: hollow ring — dark center, route-colored outline + chevron

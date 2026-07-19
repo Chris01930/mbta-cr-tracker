@@ -24,11 +24,12 @@ import { AboutSheet } from '../components/AboutSheet';
  */
 export function MapScreen() {
   const cycleInspect = useStore((s) => s.cycleInspect);
-  const selectCab = useStore((s) => s.selectCab);
+  const selectKey = useStore((s) => s.selectKey);
   const mode = useStore((s) => s.mode);
   const showTrails = useStore((s) => s.showTrails);
   const showRoutes = useStore((s) => s.showRoutes);
   const showStations = useStore((s) => s.showStations);
+  const showGhosts = useStore((s) => s.showGhosts);
   const [heritageOpen, setHeritageOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -39,9 +40,9 @@ export function MapScreen() {
   const markerTapAt = useRef(0);
 
   const handleMarkerSelect = useCallback(
-    (cab: string) => {
+    (key: string) => {
       markerTapAt.current = Date.now();
-      cycleInspect(cab);
+      cycleInspect(key);
     },
     [cycleInspect],
   );
@@ -50,8 +51,8 @@ export function MapScreen() {
     // Marker taps also fire the map's onPress on iOS; ignore it briefly so the
     // selection a marker just made isn't immediately cleared.
     if (Date.now() - markerTapAt.current < 400) return;
-    selectCab(null);
-  }, [selectCab]);
+    selectKey(null);
+  }, [selectKey]);
 
   // Drives the playback timeline when playing (no-op in live mode).
   usePlayback();
@@ -77,8 +78,8 @@ export function MapScreen() {
           showStations={showStations}
           onStationPress={(name, lng, lat) => setStation({ name, lng, lat })}
         />
-        {showTrails && <Trails />}
-        <TrainMarkers onSelect={handleMarkerSelect} />
+        {showTrails && <Trails includeGhosts={showGhosts} />}
+        <TrainMarkers onSelect={handleMarkerSelect} showGhosts={showGhosts} />
       </Map>
 
       {/* Ambient cue: amber frame around the map while viewing history. */}

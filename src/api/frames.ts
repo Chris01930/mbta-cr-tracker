@@ -32,8 +32,8 @@ export async function loadDayFrames(date: string, signal?: AbortSignal): Promise
   return normalizeDayFrames(await res.json());
 }
 
-/** A frames-file train as served: the modeled fields plus the optional `rev`. */
-type RawFramesTrain = Partial<Train> & { rev?: string };
+/** A frames-file train as served: the modeled fields plus the optional `rev`/`vid`. */
+type RawFramesTrain = Partial<Train> & { rev?: string; vid?: string };
 
 /**
  * Normalize a raw day-frames document into the app's model. The only
@@ -46,18 +46,23 @@ export function normalizeDayFrames(raw: unknown): DayFrames {
   const doc = (raw ?? {}) as { date?: string; updated?: string; frames?: unknown[] };
   const frames: Frame[] = (Array.isArray(doc.frames) ? doc.frames : []).map((f) => {
     const frame = (f ?? {}) as { key?: string; time?: string; trains?: RawFramesTrain[] };
-    const trains: Train[] = (Array.isArray(frame.trains) ? frame.trains : []).map((t) => ({
-      cab: t.cab ?? null,
-      train: t.train ?? null,
-      dest: t.dest ?? null,
-      route: t.route ?? null,
-      status: t.status ?? null,
-      lat: t.lat as number,
-      lon: t.lon as number,
-      brg: t.brg ?? null,
-      upd: t.upd ?? null,
-      isNonRevenue: t.rev === 'NON_REVENUE',
-    }));
+    const trains: Train[] = (Array.isArray(frame.trains) ? frame.trains : []).map((t) => {
+      const cab = t.cab ?? null;
+      return {
+        cab,
+        train: t.train ?? null,
+        dest: t.dest ?? null,
+        route: t.route ?? null,
+        status: t.status ?? null,
+        lat: t.lat as number,
+        lon: t.lon as number,
+        brg: t.brg ?? null,
+        upd: t.upd ?? null,
+        isNonRevenue: t.rev === 'NON_REVENUE',
+        isGhost: cab == null,
+        vid: t.vid ?? null,
+      };
+    });
     return { key: frame.key ?? '', time: frame.time ?? '', trains };
   });
   return { date: doc.date ?? '', updated: doc.updated ?? '', frames };

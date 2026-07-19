@@ -35,25 +35,34 @@ function haversineMi(aLat: number, aLon: number, bLat: number, bLon: number): nu
 
 type TrailFC = GeoJSON.FeatureCollection<GeoJSON.LineString, { color: string }>;
 
-/** Build a GeoJSON FeatureCollection of trail segments from frame history. */
-export function buildTrails(frames: Frame[], cfg: TrailsTuning): TrailFC {
-  // 1. Collect each cab's fixes in time order (skip ghosts / non-plottable).
-  const byCab = new Map<string, Fix[]>();
+/**
+ * Build a GeoJSON FeatureCollection of trail segments from frame history.
+ * Grouped by tracking identity — cab label, or the ghost's `vid`. Live ghosts
+ * (distinct vids) get distinct trails; pre-2026-07-19 ghosts lack a vid and are
+ * skipped (no stable cross-frame identity). `includeGhosts=false` drops ghosts.
+ */
+export function buildTrails(frames: Frame[], cfg: TrailsTuning, includeGhosts = true): TrailFC {
+  // 1. Collect each entity's fixes in time order (skip non-plottable).
+  const byId = new Map<string, Fix[]>();
   for (const frame of frames) {
     const frameT = Date.parse(frame.time);
     for (const tr of frame.trains) {
-      if (!tr.cab || typeof tr.lat !== 'number' || typeof tr.lon !== 'number') continue;
+      if (typeof tr.lat !== 'number' || typeof tr.lon !== 'number') continue;
+      const isGhost = tr.cab == null;
+      if (isGhost && !includeGhosts) continue;
+      const id = tr.cab ?? tr.vid ?? null; // vid-less ghost -> no stable trail
+      if (!id) continue;
       const t = tr.upd ? Date.parse(tr.upd) : frameT;
-      const arr = byCab.get(tr.cab) ?? [];
+      const arr = byId.get(id) ?? [];
       arr.push({ lon: tr.lon, lat: tr.lat, route: tr.route, t: isNaN(t) ? frameT : t });
-      byCab.set(tr.cab, arr);
+      byId.set(id, arr);
     }
   }
 
   const gapMs = cfg.gapBreakMin * 60_000;
   const features: TrailFC['features'] = [];
 
-  for (const fixes of byCab.values()) {
+  for (const fixes of byId.values()) {
     fixes.sort((a, b) => a.t - b.t);
 
     let seg: Fix[] = [];

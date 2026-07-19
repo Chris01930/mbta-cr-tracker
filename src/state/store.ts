@@ -19,6 +19,7 @@ export type AppMode = 'live' | 'playback';
  */
 
 const HERITAGE_STORAGE_KEY = 'crHeritage';
+const LAYER_PREFS_KEY = 'layerPrefs.v1';
 
 /** unit number -> cab label */
 export type HeritagePairs = Record<string, string>;
@@ -47,7 +48,7 @@ interface AppState {
   seeded: boolean;
 
   // Selection + inspect tap cycle (0=none,1=chip,2=details,3=stops)
-  selectedCab: string | null;
+  selectedKey: string | null;
   inspectStage: number;
 
   // Predictions (explicit refresh only)
@@ -58,10 +59,11 @@ interface AppState {
   // Heritage pairing
   heritage: HeritagePairs;
 
-  // Map layer toggles
+  // Map layer toggles (persisted)
   showTrails: boolean; // movement history lines
   showRoutes: boolean; // CR network line overlay (off = trails more visible)
   showStations: boolean; // CR station dots
+  showGhosts: boolean; // ghost (no-cab) vehicles
 
   // Actions
   hydrateHeritage: () => Promise<void>;
@@ -78,8 +80,8 @@ interface AppState {
   seedFrom: (trains: Train[], frameKey: string) => void;
   commitFrame: (frame: Frame) => void;
   markStale: () => void;
-  selectCab: (cab: string | null) => void;
-  cycleInspect: (cab: string) => void;
+  selectKey: (key: string | null) => void;
+  cycleInspect: (key: string) => void;
   setPredictions: (rows: Record<string, PredictionRow[]>) => void;
   setPredictionsLoading: (loading: boolean) => void;
   pairHeritage: (unit: string, cab: string) => void;
@@ -87,6 +89,18 @@ interface AppState {
   toggleTrails: () => void;
   toggleRoutes: () => void;
   toggleStations: () => void;
+  toggleGhosts: () => void;
+  hydrateLayerPrefs: () => Promise<void>;
+}
+
+function persistLayerPrefs(s: AppState): void {
+  const prefs = {
+    showTrails: s.showTrails,
+    showRoutes: s.showRoutes,
+    showStations: s.showStations,
+    showGhosts: s.showGhosts,
+  };
+  void AsyncStorage.setItem(LAYER_PREFS_KEY, JSON.stringify(prefs));
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -104,7 +118,7 @@ export const useStore = create<AppState>((set, get) => ({
   heartbeat: 'idle',
   lastDataMs: null,
   seeded: false,
-  selectedCab: null,
+  selectedKey: null,
   inspectStage: 0,
   predictions: {},
   predictionsAsOf: null,
@@ -113,6 +127,7 @@ export const useStore = create<AppState>((set, get) => ({
   showTrails: true,
   showRoutes: true,
   showStations: true,
+  showGhosts: true,
 
   hydrateHeritage: async () => {
     try {
@@ -140,7 +155,7 @@ export const useStore = create<AppState>((set, get) => ({
       playbackPlaying: false,
       playbackLoading: false,
       playbackError: null,
-      selectedCab: null,
+      selectedKey: null,
       inspectStage: 0,
     });
   },
@@ -153,7 +168,7 @@ export const useStore = create<AppState>((set, get) => ({
       playbackPlaying: false,
       playbackLoading: false,
       playbackError: null,
-      selectedCab: null,
+      selectedKey: null,
       inspectStage: 0,
     }),
 
@@ -207,14 +222,14 @@ export const useStore = create<AppState>((set, get) => ({
 
   markStale: () => set({ heartbeat: 'stale' }),
 
-  selectCab: (cab) => set({ selectedCab: cab, inspectStage: cab ? 1 : 0 }),
+  selectKey: (key) => set({ selectedKey: key, inspectStage: key ? 1 : 0 }),
 
   // Per-train tap cycle: chip -> details -> stops -> nothing.
-  cycleInspect: (cab) =>
+  cycleInspect: (key) =>
     set((s) => {
-      if (s.selectedCab !== cab) return { selectedCab: cab, inspectStage: 1 };
+      if (s.selectedKey !== key) return { selectedKey: key, inspectStage: 1 };
       const next = s.inspectStage + 1;
-      if (next > 3) return { selectedCab: null, inspectStage: 0 };
+      if (next > 3) return { selectedKey: null, inspectStage: 0 };
       return { inspectStage: next };
     }),
 
@@ -244,9 +259,38 @@ export const useStore = create<AppState>((set, get) => ({
       return { heritage };
     }),
 
-  toggleTrails: () => set((s) => ({ showTrails: !s.showTrails })),
-  toggleRoutes: () => set((s) => ({ showRoutes: !s.showRoutes })),
-  toggleStations: () => set((s) => ({ showStations: !s.showStations })),
+  toggleTrails: () => {
+    set((s) => ({ showTrails: !s.showTrails }));
+    persistLayerPrefs(get());
+  },
+  toggleRoutes: () => {
+    set((s) => ({ showRoutes: !s.showRoutes }));
+    persistLayerPrefs(get());
+  },
+  toggleStations: () => {
+    set((s) => ({ showStations: !s.showStations }));
+    persistLayerPrefs(get());
+  },
+  toggleGhosts: () => {
+    set((s) => ({ showGhosts: !s.showGhosts }));
+    persistLayerPrefs(get());
+  },
+
+  hydrateLayerPrefs: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(LAYER_PREFS_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw) as Partial<Record<'showTrails' | 'showRoutes' | 'showStations' | 'showGhosts', boolean>>;
+      set({
+        showTrails: p.showTrails ?? true,
+        showRoutes: p.showRoutes ?? true,
+        showStations: p.showStations ?? true,
+        showGhosts: p.showGhosts ?? true,
+      });
+    } catch {
+      // ignore corrupt prefs — defaults stand
+    }
+  },
 }));
 
 /** Reverse lookup: cab label -> unit number (for painting markers). */

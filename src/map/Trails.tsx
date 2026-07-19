@@ -9,7 +9,7 @@ import { buildTrails } from '../lib/trails';
  * or, in playback, the day's frames up to the current scrub position — so
  * trails grow as you play. Colored per route; rendered under the train markers.
  */
-export function Trails() {
+export function Trails({ includeGhosts = true }: { includeGhosts?: boolean }) {
   const mode = useStore((s) => s.mode);
   const liveFrames = useStore((s) => s.frames);
   const playbackDay = useStore((s) => s.playbackDay);
@@ -27,7 +27,10 @@ export function Trails() {
     return liveFrames;
   }, [mode, playbackDay, playbackIndex, liveFrames, cap]);
 
-  const data = useMemo(() => buildTrails(frames, trailsCfg), [frames, trailsCfg]);
+  const data = useMemo(
+    () => buildTrails(frames, trailsCfg, includeGhosts),
+    [frames, trailsCfg, includeGhosts],
+  );
 
   return (
     <GeoJSONSource id="trails" data={data}>

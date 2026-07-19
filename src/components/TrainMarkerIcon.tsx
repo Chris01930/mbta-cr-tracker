@@ -18,15 +18,24 @@ import { heritageIconOpacity, puckAppearance } from '../lib/markerStyle';
 interface Props {
   color: string;
   bearing: number | null;
-  label: string; // cab number (or "?") — always shown
+  label: string; // cab number / ghost id — always shown
   unit?: string | null; // heritage unit number if paired
   selected?: boolean;
   isNonRevenue?: boolean; // deadhead / equipment move — render distinctly
+  isGhost?: boolean; // no cab/trip — dashed ring
 }
 
-export function TrainMarkerIcon({ color, bearing, label, unit, selected, isNonRevenue = false }: Props) {
+export function TrainMarkerIcon({
+  color,
+  bearing,
+  label,
+  unit,
+  selected,
+  isNonRevenue = false,
+  isGhost = false,
+}: Props) {
   const iconUrl = heritageIconUrl(unit);
-  const puck = puckAppearance(color, isNonRevenue);
+  const puck = puckAppearance(color, isNonRevenue, isGhost);
 
   return (
     <View style={styles.wrap} pointerEvents="none">
@@ -42,7 +51,11 @@ export function TrainMarkerIcon({ color, bearing, label, unit, selected, isNonRe
         <View
           style={[
             styles.puck,
-            { backgroundColor: puck.backgroundColor, borderColor: puck.borderColor },
+            {
+              backgroundColor: puck.backgroundColor,
+              borderColor: puck.borderColor,
+              borderStyle: puck.dashed ? 'dashed' : 'solid',
+            },
             selected && styles.puckSelected,
           ]}
         >

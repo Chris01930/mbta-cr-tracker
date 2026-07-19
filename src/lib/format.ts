@@ -1,4 +1,5 @@
 import { msToMph } from '../api/mbta';
+import { trainKey } from './trains';
 import type { HeartbeatState, Train, VehicleStatus } from '../types';
 
 /** Prettified vehicle status for the details card. */
@@ -48,8 +49,8 @@ export function heartbeatLabel(state: HeartbeatState): string {
   }
 }
 
-/** Find the current train object for a cab label. */
-export function findByCab(trains: Train[], cab: string | null): Train | undefined {
-  if (!cab) return undefined;
-  return trains.find((t) => t.cab === cab);
+/** Find the current train by its tracking key (cab or ghost vid). */
+export function findByKey(trains: Train[], key: string | null): Train | undefined {
+  if (!key) return undefined;
+  return trains.find((t) => trainKey(t) === key);
 }

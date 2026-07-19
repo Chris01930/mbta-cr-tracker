@@ -84,8 +84,9 @@ export function normalizeVehicles(doc: JsonApiDoc): Train[] {
     const tripId = v.relationships?.trip?.data?.id ?? null;
     const routeId = v.relationships?.route?.data?.id ?? null;
     const trip = tripId ? trips.get(tripId) : undefined;
+    const cab = a.label ?? null;
     out.push({
-      cab: a.label ?? null,
+      cab,
       train: trip?.name ?? null,
       dest: trip?.headsign ?? null,
       route: routeId,
@@ -95,6 +96,8 @@ export function normalizeVehicles(doc: JsonApiDoc): Train[] {
       brg: a.bearing ?? null,
       upd: a.updated_at ?? null,
       isNonRevenue: a.revenue === 'NON_REVENUE',
+      isGhost: cab == null,
+      vid: v.id, // resource id — tracking key for ghosts
       tripId,
       spd: a.speed ?? null,
     });

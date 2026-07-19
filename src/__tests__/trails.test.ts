@@ -10,7 +10,7 @@ const min = (m: number) => new Date(BASE + m * 60_000).toISOString();
 
 // ~0.0101 deg latitude ≈ 0.7 mi; 0.0725 ≈ 5 mi; 0.116 ≈ 8 mi.
 function fix(cab: string | null, route: string | null, lat: number, lon: number, upd: string): Train {
-  return { cab, train: null, dest: null, route, status: null, lat, lon, brg: null, upd, isNonRevenue: false };
+  return { cab, train: null, dest: null, route, status: null, lat, lon, brg: null, upd, isNonRevenue: false, isGhost: cab == null };
 }
 /** One frame per fix (each poll snapshot has the cab at one position). */
 function frames(fixes: Train[]): Frame[] {

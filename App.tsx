@@ -13,15 +13,17 @@ import { useConfigStore } from './src/config/configStore';
  */
 export default function App() {
   const hydrateHeritage = useStore((s) => s.hydrateHeritage);
+  const hydrateLayerPrefs = useStore((s) => s.hydrateLayerPrefs);
   const hydrateConfig = useConfigStore((s) => s.hydrate);
   const refreshConfig = useConfigStore((s) => s.refresh);
 
-  // Load runtime config (cached copy + fresh fetch) and persisted heritage.
+  // Load runtime config (cached copy + fresh fetch), persisted heritage + prefs.
   useEffect(() => {
     void hydrateConfig();
     void refreshConfig();
     void hydrateHeritage();
-  }, [hydrateConfig, refreshConfig, hydrateHeritage]);
+    void hydrateLayerPrefs();
+  }, [hydrateConfig, refreshConfig, hydrateHeritage, hydrateLayerPrefs]);
 
   // Start the live session (seed + poll + watchdog).
   useLivePolling();

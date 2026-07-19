@@ -2,25 +2,34 @@ import React, { useMemo } from 'react';
 import { Marker } from '@maplibre/maplibre-react-native';
 import { routeColor } from '../constants/routes';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
-import { dedupeTrains, trainKey } from '../lib/trains';
+import { dedupeTrains, trainKey, trainLabel } from '../lib/trains';
 import { TrainMarkerIcon } from '../components/TrainMarkerIcon';
 
 /**
- * Renders one tappable Marker per plottable train. Markers repaint immediately
- * when a heritage pairing changes (the cab->unit map is derived from store
- * state, so a pairing edit re-renders affected markers).
+ * Renders one tappable Marker per plottable train (ghosts included, keyed by
+ * their vehicle id). Markers repaint immediately when a heritage pairing
+ * changes. Selection is by tracking key, so ghosts are tappable too.
  */
-export function TrainMarkers({ onSelect }: { onSelect: (cab: string) => void }) {
+export function TrainMarkers({
+  onSelect,
+  showGhosts = true,
+}: {
+  onSelect: (key: string) => void;
+  showGhosts?: boolean;
+}) {
   const trains = useDisplayedTrains();
   const heritage = useStore((s) => s.heritage);
-  const selectedCab = useStore((s) => s.selectedCab);
+  const selectedKey = useStore((s) => s.selectedKey);
 
   const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
 
-  // Dedupe so a cab appearing twice in a poll yields one marker with a unique
-  // key — duplicate MapLibre annotation ids otherwise trigger a render loop.
-  // Memoized on `trains` so the store snapshot stays a stable reference.
-  const unique = useMemo(() => dedupeTrains(trains), [trains]);
+  // Dedupe (by tracking key) so a repeated entity yields one marker with a
+  // unique id, and drop ghosts when the toggle is off. Memoized on `trains` +
+  // `showGhosts` so the store snapshot stays a stable reference.
+  const unique = useMemo(
+    () => dedupeTrains(trains).filter((t) => showGhosts || !t.isGhost),
+    [trains, showGhosts],
+  );
 
   return (
     <>
@@ -28,14 +37,15 @@ export function TrainMarkers({ onSelect }: { onSelect: (cab: string) => void }) 
         const key = trainKey(t);
         const unit = t.cab ? unitByCab[t.cab] : undefined;
         return (
-          <Marker key={key} id={key} lngLat={[t.lon, t.lat]} onPress={() => t.cab && onSelect(t.cab)}>
+          <Marker key={key} id={key} lngLat={[t.lon, t.lat]} onPress={() => onSelect(key)}>
             <TrainMarkerIcon
               color={routeColor(t.route)}
               bearing={t.brg}
-              label={t.cab ?? '?'}
+              label={trainLabel(t)}
               unit={unit}
-              selected={!!t.cab && t.cab === selectedCab}
+              selected={key === selectedKey}
               isNonRevenue={t.isNonRevenue}
+              isGhost={t.isGhost}
             />
           </Marker>
         );
