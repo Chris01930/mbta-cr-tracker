@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { CONFIG } from '../config';
 import { useStore } from '../state/store';
@@ -48,6 +48,11 @@ export function MapScreen() {
     selectCab(null);
   }, [selectCab]);
 
+  // Round the playback frame's corners to match the physical screen on devices
+  // with a notch/Dynamic Island (large top inset); square screens keep square.
+  const insets = useSafeAreaInsets();
+  const screenCornerRadius = insets.top > 30 ? 55 : 0;
+
   // Drives the playback timeline when playing (no-op in live mode).
   usePlayback();
 
@@ -72,7 +77,12 @@ export function MapScreen() {
       </Map>
 
       {/* Ambient cue: amber frame around the map while viewing history. */}
-      {mode === 'playback' && <View style={styles.playbackFrame} pointerEvents="none" />}
+      {mode === 'playback' && (
+        <View
+          style={[styles.playbackFrame, { borderRadius: screenCornerRadius }]}
+          pointerEvents="none"
+        />
+      )}
 
       {/* Overlays */}
       <SafeAreaView style={styles.overlay} pointerEvents="box-none" edges={['top', 'bottom']}>
