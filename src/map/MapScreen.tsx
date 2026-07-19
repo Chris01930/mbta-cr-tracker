@@ -48,10 +48,14 @@ export function MapScreen() {
     selectCab(null);
   }, [selectCab]);
 
-  // Round the playback frame's corners to match the physical screen on devices
+  // Round the playback frame's corners to follow the physical screen on devices
   // with a notch/Dynamic Island (large top inset); square screens keep square.
+  // Bias the radius LARGER than any current iPhone display radius (~55–62pt):
+  // if it's smaller than the real screen, the hardware corner mask clips the
+  // border's squarer corner and it looks square (worse on bigger Pro Max radii).
+  // Over-rounding just tucks the corner slightly inward — always visible.
   const insets = useSafeAreaInsets();
-  const screenCornerRadius = insets.top > 30 ? 55 : 0;
+  const screenCornerRadius = insets.top > 30 ? 64 : 0;
 
   // Drives the playback timeline when playing (no-op in live mode).
   usePlayback();
