@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, Map } from '@maplibre/maplibre-react-native';
 import { CONFIG } from '../config';
 import { useStore } from '../state/store';
@@ -48,15 +48,6 @@ export function MapScreen() {
     selectCab(null);
   }, [selectCab]);
 
-  // Round the playback frame's corners to follow the physical screen on devices
-  // with a notch/Dynamic Island (large top inset); square screens keep square.
-  // Bias the radius LARGER than any current iPhone display radius (~55–62pt):
-  // if it's smaller than the real screen, the hardware corner mask clips the
-  // border's squarer corner and it looks square (worse on bigger Pro Max radii).
-  // Over-rounding just tucks the corner slightly inward — always visible.
-  const insets = useSafeAreaInsets();
-  const screenCornerRadius = insets.top > 30 ? 64 : 0;
-
   // Drives the playback timeline when playing (no-op in live mode).
   usePlayback();
 
@@ -81,12 +72,7 @@ export function MapScreen() {
       </Map>
 
       {/* Ambient cue: amber frame around the map while viewing history. */}
-      {mode === 'playback' && (
-        <View
-          style={[styles.playbackFrame, { borderRadius: screenCornerRadius }]}
-          pointerEvents="none"
-        />
-      )}
+      {mode === 'playback' && <View style={styles.playbackFrame} pointerEvents="none" />}
 
       {/* Overlays */}
       <SafeAreaView style={styles.overlay} pointerEvents="box-none" edges={['top', 'bottom']}>
@@ -120,9 +106,16 @@ const styles = StyleSheet.create({
   },
   topBar: { paddingHorizontal: 12, paddingTop: 8 },
   bottomBar: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
+  // Inset a few points so the rounded corners always clear the hardware corner
+  // mask (device-agnostic — no need to match the exact display corner radius).
   playbackFrame: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    right: 6,
+    bottom: 6,
     borderWidth: 3,
     borderColor: '#F5A623',
+    borderRadius: 50,
   },
 });
