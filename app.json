@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MBTA CR Tracker",
-    "slug": "mbta-tracker",
+    "slug": "highball-boston",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,7 +23,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -43,6 +48,12 @@
           "appleTeamId": "Z4K4WDMMZ6"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e2ddc4de-9091-4004-9e4d-467c21144e9a"
+      }
+    },
+    "owner": "chrisnewell01930s-team"
   }
 }
