@@ -33,7 +33,10 @@ Streaming can be hot-enabled later (see [Enabling streaming](#enabling-streaming
 ```
 App.tsx                     launch: hydrate heritage, start live session
 src/
-  config.ts                 all tunables (routes, URLs, cadences, thresholds)
+  config.ts                 static config (map style, tz, api key, playback)
+  config/                   runtime config from config.json (routes, colors,
+                            names, endpoints, live/trails tuning, heritage
+                            units) with on-device cache + baked-in defaults
   types.ts                  Train / Frame / DayFrames domain types
   constants/
     routes.ts               CR route list, stable per-route palette, names

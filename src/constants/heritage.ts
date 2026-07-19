@@ -1,24 +1,30 @@
 import type { ImageSourcePropType } from 'react-native';
+import { getConfig } from '../config/configStore';
 import type { HeritageUnit } from '../types';
 
 /**
- * The six heritage locomotives users pair to a consist's cab car. The MBTA API
- * never reports the locomotive's own number — only the cab car and train
- * number — so pairing is manual and user-editable, stored on-device.
+ * Heritage locomotives users pair to a consist's cab car. The MBTA API never
+ * reports the locomotive's own number — only the cab car and train number — so
+ * pairing is manual and user-editable, stored on-device.
  *
  * NEVER auto-match a vehicle label to a unit number: labels are cab cars, and
  * a coach could coincidentally share a unit's number.
+ *
+ * The *which units exist* list comes from the runtime config (`heritage_units`),
+ * so a new unit can be added server-side. Human-readable names and icon art are
+ * baked in (config only carries numbers); an unrecognized number still works
+ * with a generic "Unit ####" label and no custom icon.
  */
-export const HERITAGE_UNITS: HeritageUnit[] = [
-  { number: '1030', name: 'HSP46 1030' },
-  { number: '1036', name: 'HSP46 1036' },
-  { number: '1071', name: 'HSP46 1071' },
-  { number: '1129', name: 'GP40MC 1129' },
-  { number: '1130', name: 'GP40MC 1130' },
-  { number: '1776', name: 'Spirit of Massachusetts 1776' },
-];
 
-export const HERITAGE_NUMBERS = HERITAGE_UNITS.map((u) => u.number);
+/** Baked-in friendly names by unit number. */
+export const HERITAGE_NAMES: Record<string, string> = {
+  '1030': 'HSP46 1030',
+  '1036': 'HSP46 1036',
+  '1071': 'HSP46 1071',
+  '1129': 'GP40MC 1129',
+  '1130': 'GP40MC 1130',
+  '1776': 'Spirit of Massachusetts 1776',
+};
 
 /**
  * Per-unit icon art (front-elevation loco illustrations). Metro requires static
@@ -37,4 +43,13 @@ export const HERITAGE_ICONS: Record<string, ImageSourcePropType> = {
 
 export function heritageIcon(unit: string | null | undefined): ImageSourcePropType | undefined {
   return unit ? HERITAGE_ICONS[unit] : undefined;
+}
+
+export function heritageName(unit: string): string {
+  return HERITAGE_NAMES[unit] ?? `Unit ${unit}`;
+}
+
+/** The active heritage unit list (numbers from config + baked-in names). */
+export function heritageUnits(): HeritageUnit[] {
+  return getConfig().heritageUnits.map((number) => ({ number, name: heritageName(number) }));
 }

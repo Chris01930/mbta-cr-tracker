@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MapScreen } from './src/map/MapScreen';
 import { useLivePolling } from './src/hooks/useLivePolling';
 import { useStore } from './src/state/store';
+import { useConfigStore } from './src/config/configStore';
 
 /**
  * MBTA Commuter Rail Tracker — polling-only live MVP.
@@ -12,11 +13,15 @@ import { useStore } from './src/state/store';
  */
 export default function App() {
   const hydrateHeritage = useStore((s) => s.hydrateHeritage);
+  const hydrateConfig = useConfigStore((s) => s.hydrate);
+  const refreshConfig = useConfigStore((s) => s.refresh);
 
-  // Load persisted heritage pairings once on launch.
+  // Load runtime config (cached copy + fresh fetch) and persisted heritage.
   useEffect(() => {
+    void hydrateConfig();
+    void refreshConfig();
     void hydrateHeritage();
-  }, [hydrateHeritage]);
+  }, [hydrateConfig, refreshConfig, hydrateHeritage]);
 
   // Start the live session (seed + poll + watchdog).
   useLivePolling();

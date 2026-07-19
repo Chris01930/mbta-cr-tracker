@@ -2,14 +2,10 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { loadPredictions, type PredictionRow } from '../api/mbta';
 import { routeColor, routeShort } from '../constants/routes';
-import { HERITAGE_UNITS } from '../constants/heritage';
+import { heritageName } from '../constants/heritage';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { findByCab, mphLabel, prettyStatus } from '../lib/format';
 import { formatClock } from '../lib/time';
-
-const UNIT_NAME: Record<string, string> = Object.fromEntries(
-  HERITAGE_UNITS.map((u) => [u.number, u.name]),
-);
 
 /**
  * Bottom inspect card driven by the per-train tap cycle:
@@ -84,7 +80,7 @@ export function InspectCard() {
       {/* Heritage tag (whenever paired, from stage 1) */}
       {unit && (
         <View style={styles.heritageTag}>
-          <Text style={styles.heritageText}>HERITAGE · {UNIT_NAME[unit] ?? `Unit ${unit}`}</Text>
+          <Text style={styles.heritageText}>HERITAGE · {heritageName(unit)}</Text>
         </View>
       )}
 
@@ -94,7 +90,7 @@ export function InspectCard() {
           <Detail label="Destination" value={train.dest ?? '—'} />
           <Detail label="Status" value={prettyStatus(train.status)} />
           <Detail label="Speed" value={mphLabel(train.spd)} />
-          {unit && <Detail label="Heritage unit" value={UNIT_NAME[unit] ?? unit} />}
+          {unit && <Detail label="Heritage unit" value={heritageName(unit)} />}
         </View>
       )}
 

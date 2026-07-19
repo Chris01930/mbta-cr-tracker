@@ -1,4 +1,4 @@
-import { CONFIG } from '../config';
+import { getConfig } from '../config/configStore';
 import type { DayFrames, Frame, Train } from '../types';
 
 /**
@@ -21,7 +21,7 @@ export class NoDataError extends Error {
 }
 
 export function framesUrl(date: string): string {
-  return `${CONFIG.framesBaseUrl}/${date}.json`;
+  return `${getConfig().framesBase.replace(/\/$/, '')}/${date}.json`;
 }
 
 export async function loadDayFrames(date: string, signal?: AbortSignal): Promise<DayFrames> {

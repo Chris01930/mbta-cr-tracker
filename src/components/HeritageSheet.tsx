@@ -8,9 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { HERITAGE_UNITS } from '../constants/heritage';
+import { heritageName } from '../constants/heritage';
 import { CAB_ROSTER, CAB_BY_NUMBER } from '../constants/cabRoster';
 import { routeShort } from '../constants/routes';
+import { useConfigStore } from '../config/configStore';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { dedupeTrains } from '../lib/trains';
 
@@ -35,6 +36,13 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   const [assigning, setAssigning] = useState<string | null>(null);
   const [tab, setTab] = useState<AssignTab>('active');
   const [search, setSearch] = useState('');
+
+  // The unit list is config-driven (numbers from config.json); names baked in.
+  const unitNumbers = useConfigStore((s) => s.config.heritageUnits);
+  const units = useMemo(
+    () => unitNumbers.map((number) => ({ number, name: heritageName(number) })),
+    [unitNumbers],
+  );
 
   const activeCabs = useMemo(
     () =>
@@ -83,7 +91,7 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
 
           {!assigning ? (
             <FlatList
-              data={HERITAGE_UNITS}
+              data={units}
               keyExtractor={(u) => u.number}
               renderItem={({ item }) => {
                 const cab = heritage[item.number];

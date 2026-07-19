@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { CONFIG } from '../config';
+import { getConfig } from '../config/configStore';
 import type { PredictionRow } from '../api/mbta';
 import { plottableTrains } from '../api/frames';
 import type { DayFrames, Frame, HeartbeatState, Train } from '../types';
@@ -193,7 +194,8 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => {
       if (frame.key === s.lastFrameKey) return s;
       const frames = [...s.frames, frame];
-      if (frames.length > CONFIG.frameHistoryCap) frames.splice(0, frames.length - CONFIG.frameHistoryCap);
+      const cap = getConfig().live.maxSessionFrames;
+      if (frames.length > cap) frames.splice(0, frames.length - cap);
       return { frames, lastFrameKey: frame.key };
     }),
 

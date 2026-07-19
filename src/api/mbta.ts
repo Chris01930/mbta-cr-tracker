@@ -1,4 +1,5 @@
-import { CONFIG, CR_ROUTE_FILTER, IS_STREAMING_ENABLED } from '../config';
+import { CONFIG, IS_STREAMING_ENABLED } from '../config';
+import { getConfig } from '../config/configStore';
 import type { Train, VehicleStatus } from '../types';
 
 /**
@@ -44,7 +45,7 @@ function withKey(url: URL): URL {
 }
 
 function u(path: string): URL {
-  return new URL(CONFIG.mbtaBaseUrl + path);
+  return new URL(getConfig().mbtaApi + path);
 }
 
 // --- Vehicles (live positions) ---------------------------------------------
@@ -55,7 +56,7 @@ function u(path: string): URL {
  */
 export async function pollVehicles(signal?: AbortSignal): Promise<Train[]> {
   const url = u('/vehicles');
-  url.searchParams.set('filter[route]', CR_ROUTE_FILTER);
+  url.searchParams.set('filter[route]', getConfig().routeFilter);
   url.searchParams.set('include', 'trip');
   withKey(url);
 
@@ -222,7 +223,7 @@ export async function loadSchedules(
 ): Promise<ScheduleRow[]> {
   const url = u('/schedules');
   url.searchParams.set('filter[stop]', stationId);
-  url.searchParams.set('filter[route]', CR_ROUTE_FILTER);
+  url.searchParams.set('filter[route]', getConfig().routeFilter);
   url.searchParams.set('include', 'trip');
   url.searchParams.set('fields[schedule]', 'arrival_time,departure_time,direction_id');
   url.searchParams.set('fields[trip]', 'name,headsign');

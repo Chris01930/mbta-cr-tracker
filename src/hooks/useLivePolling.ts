@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState as RNAppState } from 'react-native';
 import { CONFIG } from '../config';
+import { getConfig } from '../config/configStore';
 import { pollVehicles } from '../api/mbta';
 import { latestFrame, loadDayFrames } from '../api/frames';
 import { easternDateKey } from '../lib/time';
@@ -65,12 +66,12 @@ export function useLivePolling(): void {
     function tickWatchdog() {
       const { lastDataMs } = useStore.getState();
       if (lastDataMs == null) return;
-      if (Date.now() - lastDataMs > CONFIG.heartbeat.redAfterMs) markStale();
+      if (Date.now() - lastDataMs > getConfig().live.staleAfterMs) markStale();
     }
 
     seed();
     poll();
-    pollTimer.current = setInterval(poll, CONFIG.pollIntervalMs);
+    pollTimer.current = setInterval(poll, getConfig().live.pollIntervalMs);
     watchdog.current = setInterval(tickWatchdog, 15_000);
 
     // Poll immediately when the app returns to the foreground.
