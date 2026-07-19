@@ -1,0 +1,94 @@
+import { routeColor } from '../constants/routes';
+import type { Frame } from '../types';
+
+/**
+ * Movement trails: polylines of where each cab has been, built from frame
+ * history. Fixes are grouped by cab identity and broken into a new segment
+ * whenever ANY of the doc's rules trip (route change, > gap, > implied speed,
+ * > single-hop distance). Each segment is colored by its own route.
+ */
+
+export interface TrailsTuning {
+  gapBreakMin: number;
+  maxImpliedMph: number;
+  maxHopMi: number;
+  breakOnRouteChange: boolean;
+}
+
+interface Fix {
+  lon: number;
+  lat: number;
+  route: string | null;
+  t: number; // epoch ms
+}
+
+const EARTH_MI = 3958.8;
+
+function haversineMi(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLon = toRad(bLon - aLon);
+  const s =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_MI * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+type TrailFC = GeoJSON.FeatureCollection<GeoJSON.LineString, { color: string }>;
+
+/** Build a GeoJSON FeatureCollection of trail segments from frame history. */
+export function buildTrails(frames: Frame[], cfg: TrailsTuning): TrailFC {
+  // 1. Collect each cab's fixes in time order (skip ghosts / non-plottable).
+  const byCab = new Map<string, Fix[]>();
+  for (const frame of frames) {
+    const frameT = Date.parse(frame.time);
+    for (const tr of frame.trains) {
+      if (!tr.cab || typeof tr.lat !== 'number' || typeof tr.lon !== 'number') continue;
+      const t = tr.upd ? Date.parse(tr.upd) : frameT;
+      const arr = byCab.get(tr.cab) ?? [];
+      arr.push({ lon: tr.lon, lat: tr.lat, route: tr.route, t: isNaN(t) ? frameT : t });
+      byCab.set(tr.cab, arr);
+    }
+  }
+
+  const gapMs = cfg.gapBreakMin * 60_000;
+  const features: TrailFC['features'] = [];
+
+  for (const fixes of byCab.values()) {
+    fixes.sort((a, b) => a.t - b.t);
+
+    let seg: Fix[] = [];
+    const flush = () => {
+      if (seg.length >= 2) {
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: seg.map((f) => [f.lon, f.lat]) },
+          properties: { color: routeColor(seg[0].route) },
+        });
+      }
+      seg = [];
+    };
+
+    for (const cur of fixes) {
+      if (seg.length === 0) {
+        seg.push(cur);
+        continue;
+      }
+      const prev = seg[seg.length - 1];
+      const dt = cur.t - prev.t;
+      if (dt <= 0 && cur.lon === prev.lon && cur.lat === prev.lat) continue; // duplicate
+      const dist = haversineMi(prev.lat, prev.lon, cur.lat, cur.lon);
+      const dtMin = dt / 60_000;
+      const impliedMph = dtMin > 0 ? dist / (dtMin / 60) : Infinity;
+      const shouldBreak =
+        (cfg.breakOnRouteChange && cur.route !== prev.route) ||
+        dt > gapMs ||
+        impliedMph > cfg.maxImpliedMph ||
+        dist > cfg.maxHopMi;
+      if (shouldBreak) flush();
+      seg.push(cur);
+    }
+    flush();
+  }
+
+  return { type: 'FeatureCollection', features };
+}

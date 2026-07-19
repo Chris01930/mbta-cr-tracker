@@ -6,8 +6,10 @@ import { CONFIG } from '../config';
 import { useStore } from '../state/store';
 import { usePlayback } from '../hooks/usePlayback';
 import { CrNetwork } from './CrNetwork';
+import { Trails } from './Trails';
 import { TrainMarkers } from './TrainMarkers';
 import { HeartbeatBar } from '../components/HeartbeatBar';
+import { LayerToggles } from '../components/LayerToggles';
 import { InspectCard } from '../components/InspectCard';
 import { PlaybackBar } from '../components/PlaybackBar';
 import { HeritageSheet } from '../components/HeritageSheet';
@@ -24,6 +26,8 @@ export function MapScreen() {
   const cycleInspect = useStore((s) => s.cycleInspect);
   const selectCab = useStore((s) => s.selectCab);
   const mode = useStore((s) => s.mode);
+  const showTrails = useStore((s) => s.showTrails);
+  const showRoutes = useStore((s) => s.showRoutes);
   const [heritageOpen, setHeritageOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -67,7 +71,11 @@ export function MapScreen() {
             zoom: CONFIG.initialZoom,
           }}
         />
-        <CrNetwork onStationPress={(name, lng, lat) => setStation({ name, lng, lat })} />
+        <CrNetwork
+          showLines={showRoutes}
+          onStationPress={(name, lng, lat) => setStation({ name, lng, lat })}
+        />
+        {showTrails && <Trails />}
         <TrainMarkers onSelect={handleMarkerSelect} />
       </Map>
 
@@ -82,6 +90,9 @@ export function MapScreen() {
             onOpenDates={() => setDatesOpen(true)}
             onOpenAbout={() => setAboutOpen(true)}
           />
+          <View style={styles.layerRow} pointerEvents="box-none">
+            <LayerToggles />
+          </View>
         </View>
         <View style={styles.bottomBar} pointerEvents="box-none">
           <InspectCard />
@@ -105,6 +116,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   topBar: { paddingHorizontal: 12, paddingTop: 8 },
+  layerRow: { alignItems: 'flex-end', marginTop: 8 },
   bottomBar: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
   // Inset a few points so the rounded corners always clear the hardware corner
   // mask (device-agnostic — no need to match the exact display corner radius).

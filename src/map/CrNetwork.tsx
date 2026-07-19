@@ -24,9 +24,11 @@ const linesWithColor = {
 
 interface Props {
   onStationPress?: (name: string, lng: number, lat: number) => void;
+  /** Show the colored route lines. Stations stay tappable regardless. */
+  showLines?: boolean;
 }
 
-export function CrNetwork({ onStationPress }: Props) {
+export function CrNetwork({ onStationPress, showLines = true }: Props) {
   const stations = useMemo(() => rawStations as unknown as GeoJSON.FeatureCollection, []);
 
   const handleStationPress = (e: NativeSyntheticEvent<unknown>) => {
@@ -42,18 +44,20 @@ export function CrNetwork({ onStationPress }: Props) {
 
   return (
     <>
-      <GeoJSONSource id="cr-lines" data={linesWithColor}>
-        <Layer
-          id="cr-lines-line"
-          type="line"
-          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{
-            'line-color': ['get', 'color'],
-            'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.2, 11, 3, 14, 5],
-            'line-opacity': 0.85,
-          }}
-        />
-      </GeoJSONSource>
+      {showLines && (
+        <GeoJSONSource id="cr-lines" data={linesWithColor}>
+          <Layer
+            id="cr-lines-line"
+            type="line"
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            paint={{
+              'line-color': ['get', 'color'],
+              'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.2, 11, 3, 14, 5],
+              'line-opacity': 0.85,
+            }}
+          />
+        </GeoJSONSource>
+      )}
 
       <GeoJSONSource id="cr-stations" data={stations} onPress={handleStationPress}>
         <Layer

@@ -58,8 +58,9 @@ interface AppState {
   // Heritage pairing
   heritage: HeritagePairs;
 
-  // Freight/non-revenue trackage layer toggle
-  showFreight: boolean;
+  // Map layer toggles
+  showTrails: boolean; // movement history lines
+  showRoutes: boolean; // CR network line overlay (off = trails more visible)
 
   // Actions
   hydrateHeritage: () => Promise<void>;
@@ -82,7 +83,8 @@ interface AppState {
   setPredictionsLoading: (loading: boolean) => void;
   pairHeritage: (unit: string, cab: string) => void;
   unpairHeritage: (unit: string) => void;
-  toggleFreight: () => void;
+  toggleTrails: () => void;
+  toggleRoutes: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -106,7 +108,8 @@ export const useStore = create<AppState>((set, get) => ({
   predictionsAsOf: null,
   predictionsLoading: false,
   heritage: {},
-  showFreight: false,
+  showTrails: true,
+  showRoutes: true,
 
   hydrateHeritage: async () => {
     try {
@@ -238,7 +241,8 @@ export const useStore = create<AppState>((set, get) => ({
       return { heritage };
     }),
 
-  toggleFreight: () => set((s) => ({ showFreight: !s.showFreight })),
+  toggleTrails: () => set((s) => ({ showTrails: !s.showTrails })),
+  toggleRoutes: () => set((s) => ({ showRoutes: !s.showRoutes })),
 }));
 
 /** Reverse lookup: cab label -> unit number (for painting markers). */
