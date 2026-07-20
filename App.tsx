@@ -4,8 +4,10 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MapScreen } from './src/map/MapScreen';
 import { useLivePolling } from './src/hooks/useLivePolling';
+import { useHeritageNotifications } from './src/hooks/useHeritageNotifications';
 import { useStore } from './src/state/store';
 import { useConfigStore } from './src/config/configStore';
+import { configureNotifications, ensureNotifyPermission } from './src/lib/notify';
 
 /**
  * MBTA Commuter Rail Tracker — polling-only live MVP.
@@ -17,16 +19,23 @@ export default function App() {
   const hydrateConfig = useConfigStore((s) => s.hydrate);
   const refreshConfig = useConfigStore((s) => s.refresh);
 
-  // Load runtime config (cached copy + fresh fetch), persisted heritage + prefs.
+  // Load runtime config (cached copy + fresh fetch), persisted heritage + prefs,
+  // and set up notifications (handler + permission) for heritage-arrival alerts.
+  // expo-notifications is touched only here (post-mount), never at module scope.
   useEffect(() => {
     void hydrateConfig();
     void refreshConfig();
     void hydrateHeritage();
     void hydrateLayerPrefs();
+    configureNotifications();
+    void ensureNotifyPermission();
   }, [hydrateConfig, refreshConfig, hydrateHeritage, hydrateLayerPrefs]);
 
   // Start the live session (seed + poll + watchdog).
   useLivePolling();
+
+  // Notify when a heritage locomotive newly appears in the live feed.
+  useHeritageNotifications();
 
   return (
     <SafeAreaProvider>
