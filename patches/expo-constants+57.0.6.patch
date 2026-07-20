@@ -1,7 +1,7 @@
-diff --git a/node_modules/expo/node_modules/expo-constants/ios/EXConstants.podspec b/node_modules/expo/node_modules/expo-constants/ios/EXConstants.podspec
+diff --git a/node_modules/expo-constants/ios/EXConstants.podspec b/node_modules/expo-constants/ios/EXConstants.podspec
 index c4f3b6b..dd68e1b 100644
---- a/node_modules/expo/node_modules/expo-constants/ios/EXConstants.podspec
-+++ b/node_modules/expo/node_modules/expo-constants/ios/EXConstants.podspec
+--- a/node_modules/expo-constants/ios/EXConstants.podspec
++++ b/node_modules/expo-constants/ios/EXConstants.podspec
 @@ -34,10 +34,12 @@ Pod::Spec.new do |s|
      s.source_files = "**/*.{h,m,swift}"
    end
