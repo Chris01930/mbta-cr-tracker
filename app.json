@@ -47,7 +47,8 @@
         {
           "appleTeamId": "Z4K4WDMMZ6"
         }
-      ]
+      ],
+      "./plugins/withoutPushEntitlement"
     ],
     "extra": {
       "eas": {
