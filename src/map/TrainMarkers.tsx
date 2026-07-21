@@ -4,6 +4,7 @@ import { routeColor } from '../constants/routes';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { ALL_VISIBLE, dedupeTrains, trainKey, trainLabel, trainVisible, type VisibilityFilter } from '../lib/trains';
 import { TrainMarkerIcon } from '../components/TrainMarkerIcon';
+import type { Train } from '../types';
 
 /**
  * Renders one tappable Marker per plottable train (ghosts included, keyed by
@@ -25,12 +26,18 @@ export function TrainMarkers({
   const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
 
   // Dedupe (by tracking key) so a repeated entity yields one marker with a
-  // unique id, and drop classes toggled off. Memoized on `trains` + `filter` so
-  // the store snapshot stays a stable reference.
-  const unique = useMemo(
-    () => dedupeTrains(trains).filter((t) => trainVisible(t, filter)),
-    [trains, filter],
-  );
+  // unique id, and drop classes toggled off. Heritage-paired locos are rendered
+  // last: map markers stack in render/subview order, so putting them at the end
+  // keeps their icons always above plain train markers. Stable partition
+  // preserves each group's relative order. Memoized on `trains` + `filter` +
+  // `unitByCab` so the store snapshot stays a stable reference.
+  const unique = useMemo(() => {
+    const visible = dedupeTrains(trains).filter((t) => trainVisible(t, filter));
+    const plain: Train[] = [];
+    const heritage: Train[] = [];
+    for (const t of visible) (t.cab && unitByCab[t.cab] ? heritage : plain).push(t);
+    return [...plain, ...heritage];
+  }, [trains, filter, unitByCab]);
 
   return (
     <>
