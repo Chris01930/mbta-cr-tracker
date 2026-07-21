@@ -14,6 +14,9 @@ import { routeShort } from '../constants/routes';
 import { useConfigStore } from '../config/configStore';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { dedupeTrains } from '../lib/trains';
+import { locateCab, type UnitLocation } from '../lib/heritageLocate';
+import { nearestStation } from '../lib/stations';
+import { formatClock } from '../lib/time';
 
 /**
  * Heritage pairing editor. Each unit is assigned to a cab car (assign/reassign/
@@ -31,6 +34,30 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   const trains = useDisplayedTrains();
   const pairHeritage = useStore((s) => s.pairHeritage);
   const unpairHeritage = useStore((s) => s.unpairHeritage);
+
+  // Where each paired unit is (or last was) today, at the currently-displayed
+  // time. In playback that's the archived day up to the scrub position; live,
+  // it's the session's frames plus the current poll.
+  const mode = useStore((s) => s.mode);
+  const liveFrames = useStore((s) => s.frames);
+  const playbackDay = useStore((s) => s.playbackDay);
+  const playbackIndex = useStore((s) => s.playbackIndex);
+
+  const { historyFrames, currentTimeMs } = useMemo(() => {
+    if (mode === 'playback' && playbackDay) {
+      const frame = playbackDay.frames[playbackIndex];
+      return { historyFrames: playbackDay.frames, currentTimeMs: frame ? Date.parse(frame.time) : Date.now() };
+    }
+    return { historyFrames: liveFrames, currentTimeMs: Date.now() };
+  }, [mode, playbackDay, playbackIndex, liveFrames]);
+
+  const locationByUnit = useMemo(() => {
+    const out: Record<string, UnitLocation | null> = {};
+    for (const [unit, cab] of Object.entries(heritage)) {
+      out[unit] = locateCab(cab, historyFrames, currentTimeMs, trains);
+    }
+    return out;
+  }, [heritage, historyFrames, currentTimeMs, trains]);
 
   // When set, we're picking a cab to assign to this unit number.
   const [assigning, setAssigning] = useState<string | null>(null);
@@ -101,6 +128,7 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
                         </Text>
                         <Text style={styles.unitModel}>{item.model}</Text>
                         <Text style={styles.pairing}>{cab ? `Paired to Cab ${cab}` : 'Not paired'}</Text>
+                        {cab && <LocationLine loc={locationByUnit[item.unit] ?? null} />}
                       </View>
                     </View>
                     <View style={styles.actions}>
@@ -219,6 +247,27 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   );
 }
 
+/** The unit's current-or-last-known place + time line, under the pairing. */
+function LocationLine({ loc }: { loc: UnitLocation | null }) {
+  if (!loc) return <Text style={styles.locUnknown}>No location today</Text>;
+  const st = nearestStation(loc.lat, loc.lon);
+  const place = st ? st.name : `${loc.lat.toFixed(3)}, ${loc.lon.toFixed(3)}`;
+  const prep = st && st.distMi < 0.35 ? 'at' : 'near';
+  const time = formatClock(loc.timeMs);
+  if (loc.isCurrent) {
+    return (
+      <Text style={styles.locCurrent}>
+        ◉ {prep === 'at' ? 'At' : 'Near'} {place} · {time}
+      </Text>
+    );
+  }
+  return (
+    <Text style={styles.locPast}>
+      Last seen {prep} {place} · {time}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
@@ -248,6 +297,9 @@ const styles = StyleSheet.create({
   unitName: { color: '#fff', fontSize: 14, fontWeight: '600' },
   unitModel: { color: '#F5C518', fontSize: 12, fontWeight: '600', marginTop: 1 },
   pairing: { color: '#8A909B', fontSize: 12, marginTop: 2 },
+  locCurrent: { color: '#2ECC71', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  locPast: { color: '#B9BEC7', fontSize: 12, marginTop: 2 },
+  locUnknown: { color: '#6B717C', fontSize: 12, fontStyle: 'italic', marginTop: 2 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   assignBtn: { backgroundColor: '#80276C', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   assignText: { color: '#fff', fontWeight: '700', fontSize: 12 },
