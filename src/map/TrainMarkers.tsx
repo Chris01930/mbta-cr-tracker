@@ -4,7 +4,6 @@ import { routeColor } from '../constants/routes';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { ALL_VISIBLE, dedupeTrains, trainKey, trainLabel, trainVisible, type VisibilityFilter } from '../lib/trains';
 import { TrainMarkerIcon } from '../components/TrainMarkerIcon';
-import type { Train } from '../types';
 
 /**
  * Renders one tappable Marker per plottable train (ghosts included, keyed by
@@ -25,27 +24,31 @@ export function TrainMarkers({
 
   const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
 
-  // Dedupe (by tracking key) so a repeated entity yields one marker with a
-  // unique id, and drop classes toggled off. Heritage-paired locos are rendered
-  // last: map markers stack in render/subview order, so putting them at the end
-  // keeps their icons always above plain train markers. Stable partition
-  // preserves each group's relative order. Memoized on `trains` + `filter` +
-  // `unitByCab` so the store snapshot stays a stable reference.
-  const unique = useMemo(() => {
-    const visible = dedupeTrains(trains).filter((t) => trainVisible(t, filter));
-    const plain: Train[] = [];
-    const heritage: Train[] = [];
-    for (const t of visible) (t.cab && unitByCab[t.cab] ? heritage : plain).push(t);
-    return [...plain, ...heritage];
-  }, [trains, filter, unitByCab]);
+  // Dedupe (by tracking key) and drop classes toggled off. Heritage-paired locos
+  // must always draw above plain markers where they overlap; render/subview order
+  // alone is unreliable (the feed reorders vehicles between polls, so React
+  // reindexes marker subviews and the z-stacking churns — a heritage icon
+  // "sometimes" slipping behind a plain one, especially during playback). The
+  // real fix is the explicit per-marker `zIndex` below (a hard native z), so
+  // ordering here only needs to be stable/deterministic: sort by tracking key.
+  // Memoized on `trains` + `filter` (stable store snapshot).
+  const unique = useMemo(
+    () =>
+      dedupeTrains(trains)
+        .filter((t) => trainVisible(t, filter))
+        .sort((a, b) => trainKey(a).localeCompare(trainKey(b))),
+    [trains, filter],
+  );
 
   return (
     <>
       {unique.map((t) => {
         const key = trainKey(t);
         const unit = t.cab ? unitByCab[t.cab] : undefined;
+        // Explicit z: heritage locos above all plain markers, deterministically.
+        const zIndex = unit ? 1000 : 0;
         return (
-          <Marker key={key} id={key} lngLat={[t.lon, t.lat]} onPress={() => onSelect(key)}>
+          <Marker key={key} id={key} lngLat={[t.lon, t.lat]} onPress={() => onSelect(key)} style={{ zIndex }}>
             <TrainMarkerIcon
               color={routeColor(t.route)}
               bearing={t.brg}
