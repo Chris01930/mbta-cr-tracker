@@ -18,6 +18,7 @@ import { formatClock } from '../lib/time';
  */
 export function InspectCard() {
   const trains = useDisplayedTrains();
+  const mode = useStore((s) => s.mode);
   const selectedKey = useStore((s) => s.selectedKey);
   const stage = useStore((s) => s.inspectStage);
   const cycleInspect = useStore((s) => s.cycleInspect);
@@ -65,57 +66,64 @@ export function InspectCard() {
 
   const color = routeColor(train.route);
 
+  const advance = () => cycleInspect(trainKey(train));
+
+  // The next-stops list scrolls, so it can't live inside a tappable wrapper (the
+  // tap responder would swallow the scroll gesture). The chip/details area and
+  // the hint stay tappable to advance/dismiss the inspect stage.
   return (
-    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => cycleInspect(trainKey(train))}>
-      {/* Stage 1+: chip */}
-      <View style={styles.chipRow}>
-        <View style={[styles.routeDot, { backgroundColor: color }]} />
-        <Text style={styles.chip}>{trainTitle(train)}</Text>
-        <Text style={styles.route}>{routeShort(train.route)}</Text>
-      </View>
-
-      {/* Ghost tag (whenever selected) */}
-      {train.isGhost && (
-        <View style={styles.ghostTag}>
-          <Text style={styles.ghostText}>GHOST (no trip/label)</Text>
+    <View style={styles.card}>
+      <TouchableOpacity activeOpacity={0.9} onPress={advance}>
+        {/* Stage 1+: chip */}
+        <View style={styles.chipRow}>
+          <View style={[styles.routeDot, { backgroundColor: color }]} />
+          <Text style={styles.chip}>{trainTitle(train)}</Text>
+          <Text style={styles.route}>{routeShort(train.route)}</Text>
         </View>
-      )}
 
-      {/* Heritage tag (whenever paired, from stage 1) */}
-      {unit && (
-        <View style={styles.heritageTag}>
-          <Text style={styles.heritageText}>HERITAGE · {heritageName(unit)}</Text>
-        </View>
-      )}
+        {/* Ghost tag (whenever selected) */}
+        {train.isGhost && (
+          <View style={styles.ghostTag}>
+            <Text style={styles.ghostText}>GHOST (no trip/label)</Text>
+          </View>
+        )}
 
-      {/* Non-revenue tag (whenever selected) */}
-      {train.isNonRevenue && (
-        <View style={styles.nonRevTag}>
-          <Text style={styles.nonRevText}>NON-REVENUE</Text>
-        </View>
-      )}
+        {/* Heritage tag (whenever paired, from stage 1) */}
+        {unit && (
+          <View style={styles.heritageTag}>
+            <Text style={styles.heritageText}>HERITAGE · {heritageName(unit)}</Text>
+          </View>
+        )}
 
-      {/* Stage 2+: details */}
-      {stage >= 2 && (
-        <View style={styles.details}>
-          <Detail label="Destination" value={train.dest ?? '—'} />
-          <Detail label="Status" value={prettyStatus(train.status)} />
-          <Detail label="Speed" value={mphLabel(train.spd)} />
-          {unit && (
-            <Detail
-              label="Heritage unit"
-              value={heritageInfo(unit) ? `${heritageInfo(unit)!.model} · ${heritageName(unit)}` : heritageName(unit)}
-            />
-          )}
-        </View>
-      )}
+        {/* Non-revenue tag (whenever selected) */}
+        {train.isNonRevenue && (
+          <View style={styles.nonRevTag}>
+            <Text style={styles.nonRevText}>NON-REVENUE</Text>
+          </View>
+        )}
 
-      {/* Stage 3: next stops */}
+        {/* Stage 2+: details */}
+        {stage >= 2 && (
+          <View style={styles.details}>
+            <Detail label="Destination" value={train.dest ?? '—'} />
+            <Detail label="Status" value={prettyStatus(train.status)} />
+            <Detail label="Speed" value={mphLabel(train.spd)} />
+            {unit && (
+              <Detail
+                label="Heritage unit"
+                value={heritageInfo(unit) ? `${heritageInfo(unit)!.model} · ${heritageName(unit)}` : heritageName(unit)}
+              />
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Stage 3: next stops (outside the tappable area so the list can scroll) */}
       {stage >= 3 && (
         <View style={styles.stops}>
           {train.isGhost ? (
             <Text style={styles.noStops}>No trip data — this is a ghost (unassigned) vehicle.</Text>
-          ) : !train.tripId ? (
+          ) : mode === 'playback' && !train.tripId ? (
             <Text style={styles.noStops}>Next stops are available in live mode only.</Text>
           ) : predictionsAsOf == null ? (
             <View style={styles.loadingRow}>
@@ -134,8 +142,10 @@ export function InspectCard() {
         </View>
       )}
 
-      <Text style={styles.hint}>{stage < 3 ? 'Tap for more' : 'Tap to dismiss'}</Text>
-    </TouchableOpacity>
+      <TouchableOpacity activeOpacity={0.9} onPress={advance}>
+        <Text style={styles.hint}>{stage < 3 ? 'Tap for more' : 'Tap to dismiss'}</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -179,7 +189,12 @@ function NextStops({
       {future.length === 0 ? (
         <Text style={styles.noStops}>No upcoming stops for this trip.</Text>
       ) : (
-        <ScrollView style={styles.stopScroll} nestedScrollEnabled>
+        <ScrollView
+          style={styles.stopScroll}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+        >
           {future.map((r, i) => (
             <View key={`${r.stopSequence}-${i}`} style={styles.stopRow}>
               <Text style={styles.stopName} numberOfLines={1}>
@@ -249,7 +264,7 @@ const styles = StyleSheet.create({
   asOf: { color: '#8A909B', fontSize: 11 },
   refresh: { color: '#F5C518', fontSize: 12, fontWeight: '700' },
   noStops: { color: '#B9BEC7', fontSize: 13 },
-  stopScroll: { maxHeight: 170 },
+  stopScroll: { maxHeight: 240 },
   stopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
