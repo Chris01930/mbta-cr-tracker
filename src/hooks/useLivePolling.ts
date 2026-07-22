@@ -24,6 +24,7 @@ export function useLivePolling(): void {
   const mode = useStore((s) => s.mode);
   const setTrains = useStore((s) => s.setTrains);
   const seedFrom = useStore((s) => s.seedFrom);
+  const setTodayFrames = useStore((s) => s.setTodayFrames);
   const commitFrame = useStore((s) => s.commitFrame);
   const markStale = useStore((s) => s.markStale);
 
@@ -41,8 +42,12 @@ export function useLivePolling(): void {
       try {
         const date = easternDateKey();
         const day = await loadDayFrames(date);
+        if (cancelled) return;
+        // Keep today's whole archive (midnight -> now) so live-mode features can
+        // look back across the full day, not just this session.
+        setTodayFrames(day.frames);
         const frame = latestFrame(day);
-        if (!cancelled && frame) seedFrom(frame.trains, frame.key);
+        if (frame) seedFrom(frame.trains, frame.key);
       } catch {
         // No frames yet today (403) or offline — polling will populate.
       }
@@ -86,7 +91,7 @@ export function useLivePolling(): void {
       if (watchdog.current) clearInterval(watchdog.current);
       sub.remove();
     };
-  }, [mode, setTrains, seedFrom, commitFrame, markStale]);
+  }, [mode, setTrains, seedFrom, setTodayFrames, commitFrame, markStale]);
 }
 
 /** Build a frame from a live poll, keyed by current Eastern HHMMSS. */

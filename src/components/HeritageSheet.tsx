@@ -40,6 +40,7 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   // it's the session's frames plus the current poll.
   const mode = useStore((s) => s.mode);
   const liveFrames = useStore((s) => s.frames);
+  const todayFrames = useStore((s) => s.todayFrames);
   const playbackDay = useStore((s) => s.playbackDay);
   const playbackIndex = useStore((s) => s.playbackIndex);
 
@@ -48,8 +49,11 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
       const frame = playbackDay.frames[playbackIndex];
       return { historyFrames: playbackDay.frames, currentTimeMs: frame ? Date.parse(frame.time) : Date.now() };
     }
-    return { historyFrames: liveFrames, currentTimeMs: Date.now() };
-  }, [mode, playbackDay, playbackIndex, liveFrames]);
+    // Live: today's archive (midnight -> launch) + this session's frames
+    // (launch -> now), chronological, so "last known" spans the whole day.
+    const frames = todayFrames.length ? [...todayFrames, ...liveFrames] : liveFrames;
+    return { historyFrames: frames, currentTimeMs: Date.now() };
+  }, [mode, playbackDay, playbackIndex, liveFrames, todayFrames]);
 
   const locationByUnit = useMemo(() => {
     const out: Record<string, UnitLocation | null> = {};

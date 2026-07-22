@@ -30,8 +30,12 @@ interface AppState {
 
   // Live data
   trains: Train[];
-  frames: Frame[]; // capped history, newest last
+  frames: Frame[]; // capped session history, newest last (since app launch)
   lastFrameKey: string | null;
+  // Today's archived frames (midnight -> last archive write), loaded once at
+  // seed. Together with `frames` this gives the full current day in live mode
+  // (archive covers before launch; session covers launch -> now).
+  todayFrames: Frame[];
 
   // Playback (historical archive scrub)
   playbackDate: string | null;
@@ -80,6 +84,7 @@ interface AppState {
   setPlaybackSpeed: (speed: number) => void;
   setTrains: (trains: Train[], source: 'stream' | 'poll') => void;
   seedFrom: (trains: Train[], frameKey: string) => void;
+  setTodayFrames: (frames: Frame[]) => void;
   commitFrame: (frame: Frame) => void;
   markStale: () => void;
   selectKey: (key: string | null) => void;
@@ -128,6 +133,7 @@ export const useStore = create<AppState>((set, get) => ({
   trains: [],
   frames: [],
   lastFrameKey: null,
+  todayFrames: [],
   playbackDate: null,
   playbackDay: null,
   playbackIndex: 0,
@@ -227,6 +233,8 @@ export const useStore = create<AppState>((set, get) => ({
       lastFrameKey: frameKey,
       seeded: true,
     })),
+
+  setTodayFrames: (frames) => set({ todayFrames: frames }),
 
   commitFrame: (frame) =>
     set((s) => {
