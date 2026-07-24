@@ -86,6 +86,19 @@ export function friendlyDate(date: string): string {
   }).format(d);
 }
 
+/**
+ * Coarse "just now" / "3h ago" / "12d ago" for things marked days ago, where
+ * agoLabel's second/minute precision would be noise.
+ */
+export function coarseAgoLabel(fromMs: number, nowMs: number = Date.now()): string {
+  const mins = Math.max(0, Math.round((nowMs - fromMs) / 60_000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 /** Human "Xs ago" / "Xm ago" for the heartbeat ticker. */
 export function agoLabel(fromMs: number, nowMs: number = Date.now()): string {
   const secs = Math.max(0, Math.round((nowMs - fromMs) / 1000));

@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { heritageMessage, heritageSightings, newHeritageArrivals } from '../lib/heritageWatch';
+import { heritageMessage, heritageSightings, newHeritageArrivals, sightingKey } from '../lib/heritageWatch';
 import type { HeritagePairs } from '../state/store';
 import type { Train } from '../types';
 
@@ -52,19 +52,30 @@ describe('heritageSightings', () => {
 });
 
 describe('newHeritageArrivals (session dedupe)', () => {
-  test('only cabs not already seen are new', () => {
+  test('only sightings not already seen are new', () => {
     const sightings = heritageSightings(
       [train({ cab: '1500', dest: 'North Station' }), train({ cab: '1600', dest: 'Newburyport' })],
       HERITAGE,
     );
-    const seen = new Set<string>(['1500']); // already announced
+    // Announcement identity is cab AND unit, so a cab carrying a second unit
+    // still alerts for the newcomer.
+    const seen = new Set(sightings.filter((s) => s.cab === '1500').map(sightingKey));
     const arrivals = newHeritageArrivals(sightings, seen);
     expect(arrivals.map((a) => a.cab)).toEqual(['1600']);
   });
 
   test('all seen -> nothing new', () => {
     const sightings = heritageSightings([train({ cab: '1500' })], HERITAGE);
-    expect(newHeritageArrivals(sightings, new Set(['1500']))).toHaveLength(0);
+    expect(newHeritageArrivals(sightings, new Set(sightings.map(sightingKey)))).toHaveLength(0);
+  });
+
+  test('a second unit on an already-announced cab is still new', () => {
+    // Cab 1500 carries 1030 (announced) and 1129 (just added by the user).
+    const pairs = { ...HERITAGE, '1129': '1500' };
+    const sightings = heritageSightings([train({ cab: '1500' })], pairs);
+    expect(sightings).toHaveLength(2);
+    const seen = new Set(['1500:1030']);
+    expect(newHeritageArrivals(sightings, seen).map((a) => a.unit)).toEqual(['1129']);
   });
 });
 

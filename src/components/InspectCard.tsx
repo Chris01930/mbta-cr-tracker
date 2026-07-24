@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { loadPredictions, type PredictionRow } from '../api/mbta';
 import { routeColor, routeShort } from '../constants/routes';
 import { heritageInfo, heritageName, unitCategoryLine } from '../constants/heritage';
-import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
+import { displayUnitsForCab, useDisplayedTrains, useStore } from '../state/store';
+import { describeDesignation, isStale, positionLabel, type Designation } from '../lib/consists';
+import { markIconFailed, useUsableIconUrl } from '../lib/iconFallback';
 import { findByKey, mphLabel, prettyStatus } from '../lib/format';
 import { trainKey, trainTitle } from '../lib/trains';
 import { formatClock } from '../lib/time';
@@ -23,6 +25,9 @@ export function InspectCard() {
   const stage = useStore((s) => s.inspectStage);
   const cycleInspect = useStore((s) => s.cycleInspect);
   const heritage = useStore((s) => s.heritage);
+  const designations = useStore((s) => s.designations);
+  const assignedAt = useStore((s) => s.assignedAt);
+  const setPrimaryUnit = useStore((s) => s.setPrimaryUnit);
   const predictions = useStore((s) => s.predictions);
   const predictionsAsOf = useStore((s) => s.predictionsAsOf);
   const loading = useStore((s) => s.predictionsLoading);
@@ -31,10 +36,16 @@ export function InspectCard() {
 
   const train = findByKey(trains, selectedKey);
 
-  // Which notable unit (if any) is paired to this cab.
-  const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
-  const unit = train?.cab ? unitByCab[train.cab] : undefined;
-  const unitInfo = heritageInfo(unit);
+  // Which notable units (if any) are assigned to this cab, primary first, plus
+  // the cab's consist designation. Both can exist independently: a designation
+  // with no assignments is valid, and so is an assignment with no designation.
+  const units = useMemo(
+    () => (train?.cab ? displayUnitsForCab({ heritage, assignedAt, designations }, train.cab) : []),
+    [train?.cab, heritage, assignedAt, designations],
+  );
+  const designation: Designation | undefined = train?.cab ? designations[train.cab] : undefined;
+  const primaryUnit = units[0];
+  const unitInfo = heritageInfo(primaryUnit);
 
   const onLoadStops = useCallback(async () => {
     // Bulk-load predictions for every visible trip once (cached by tripId), so
@@ -89,13 +100,28 @@ export function InspectCard() {
           </View>
         )}
 
-        {/* Notable-unit tag (whenever paired, from stage 1). The category label
-            leads, so lease power reads "LEASE POWER · …" not "HERITAGE · …". */}
-        {unit && (
+        {/* Notable-unit tag (whenever assigned, from stage 1). The category
+            label leads, so lease power reads "LEASE POWER · …". With two units
+            assigned the tag names the primary and counts the rest. */}
+        {primaryUnit && (
           <View style={styles.heritageTag}>
             <Text style={styles.heritageText}>
-              {(unitInfo?.categoryLabel ?? 'Notable unit').toUpperCase()} · {heritageName(unit)}
+              {(unitInfo?.categoryLabel ?? 'Notable unit').toUpperCase()} · {heritageName(primaryUnit)}
+              {units.length > 1 ? ` +${units.length - 1}` : ''}
             </Text>
+          </View>
+        )}
+
+        {/* Designation badge — coexists with the notable-unit tag, and shows
+            even when no unit is assigned to the consist. */}
+        {designation && (
+          <View style={[styles.consistTag, isStale(designation.markedAt) && styles.consistTagStale]}>
+            <Text
+              style={[styles.consistText, isStale(designation.markedAt) && styles.consistTextStale]}
+            >
+              {describeDesignation(designation)}
+            </Text>
+            {!!designation.note && <Text style={styles.consistNote}>{designation.note}</Text>}
           </View>
         )}
 
@@ -112,13 +138,24 @@ export function InspectCard() {
             <Detail label="Destination" value={train.dest ?? '—'} />
             <Detail label="Status" value={prettyStatus(train.status)} />
             <Detail label="Speed" value={mphLabel(train.spd)} />
-            {unit && (
-              <Detail
-                label="Notable unit"
-                value={unitInfo ? `${unitInfo.model} · ${heritageName(unit)}` : heritageName(unit)}
+          </View>
+        )}
+
+        {/* Each assigned unit gets its own line, primary first. */}
+        {stage >= 2 && units.length > 0 && (
+          <View style={styles.unitLines}>
+            {units.map((u, i) => (
+              <UnitLine
+                key={u}
+                unit={u}
+                position={designation?.positions[u]}
+                isPrimary={i === 0}
+                // Swapping the primary only means anything when two icons
+                // compete for one marker, and only a designation can hold two.
+                canSwap={units.length > 1 && !!designation && i !== 0}
+                onMakePrimary={() => train.cab && setPrimaryUnit(train.cab, u)}
               />
-            )}
-            {unitInfo && <Detail label="Category" value={unitCategoryLine(unitInfo)} />}
+            ))}
           </View>
         )}
       </TouchableOpacity>
@@ -150,6 +187,66 @@ export function InspectCard() {
       <TouchableOpacity activeOpacity={0.9} onPress={advance}>
         <Text style={styles.hint}>{stage < 3 ? 'Tap for more' : 'Tap to dismiss'}</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+/**
+ * One assigned unit: icon chip (when it has usable artwork), number, model,
+ * scheme, category, owner, and its position tag when the consist records one —
+ * e.g. "1002 · F40PH-3C · Rolling Stock Solutions · Lease power · RSTX · OB end".
+ */
+function UnitLine({
+  unit,
+  position,
+  isPrimary,
+  canSwap,
+  onMakePrimary,
+}: {
+  unit: string;
+  position?: string;
+  isPrimary: boolean;
+  canSwap: boolean;
+  onMakePrimary: () => void;
+}) {
+  const info = heritageInfo(unit);
+  const iconUrl = useUsableIconUrl(info?.icon);
+
+  const detail = [
+    info?.model,
+    info?.scheme,
+    info ? unitCategoryLine(info) : undefined,
+    position ? positionLabel(position as never) : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <View style={styles.unitLine}>
+      {iconUrl ? (
+        <Image
+          source={{ uri: iconUrl }}
+          style={styles.unitChip}
+          resizeMode="contain"
+          onError={() => markIconFailed(iconUrl)}
+        />
+      ) : (
+        <View style={[styles.unitChip, styles.unitChipEmpty]} />
+      )}
+      <View style={styles.unitLineText}>
+        <Text style={styles.unitLineNum}>
+          {unit}
+          {isPrimary && <Text style={styles.primaryTag}> · primary</Text>}
+        </Text>
+        <Text style={styles.unitLineMeta} numberOfLines={2}>
+          {detail || 'Not on the roster'}
+        </Text>
+      </View>
+      {canSwap && (
+        <TouchableOpacity onPress={onMakePrimary} hitSlop={8} style={styles.makePrimaryBtn}>
+          <Text style={styles.makePrimaryText}>Make primary</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -235,6 +332,47 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   heritageText: { color: '#F5C518', fontSize: 12, fontWeight: '700' },
+  consistTag: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(93,173,226,0.15)',
+    borderColor: '#5DADE2',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  // Softened once past 14 days: still shown, but visibly asking to be confirmed.
+  consistTagStale: {
+    backgroundColor: 'rgba(149,165,166,0.12)',
+    borderColor: 'rgba(149,165,166,0.55)',
+    borderStyle: 'dashed',
+  },
+  consistText: { color: '#5DADE2', fontSize: 12, fontWeight: '700' },
+  consistTextStale: { color: '#95A5A6', fontWeight: '600' },
+  consistNote: { color: '#8A909B', fontSize: 11, marginTop: 2, fontStyle: 'italic' },
+
+  unitLines: { marginTop: 10, gap: 8 },
+  unitLine: { flexDirection: 'row', alignItems: 'center' },
+  unitChip: { width: 30, height: 22, marginRight: 8 },
+  unitChipEmpty: {
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  unitLineText: { flexShrink: 1, flexGrow: 1 },
+  unitLineNum: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  primaryTag: { color: '#F5C518', fontSize: 11, fontWeight: '700' },
+  unitLineMeta: { color: '#8A909B', fontSize: 11, marginTop: 1 },
+  makePrimaryBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(245,197,24,0.16)',
+  },
+  makePrimaryText: { color: '#F5C518', fontSize: 11, fontWeight: '700' },
   nonRevTag: {
     marginTop: 8,
     alignSelf: 'flex-start',

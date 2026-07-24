@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { heritageName } from '../constants/heritage';
 import { routeName } from '../constants/routes';
-import { heritageMessage, heritageSightings, newHeritageArrivals } from '../lib/heritageWatch';
+import { heritageMessage, heritageSightings, newHeritageArrivals, sightingKey } from '../lib/heritageWatch';
 import { ensureNotifyPermission, presentNotification } from '../lib/notify';
 
 /**
@@ -37,13 +37,13 @@ export function useHeritageNotifications(): void {
     // First live pass: record what's already out, announce nothing.
     if (!baselined.current) {
       baselined.current = true;
-      for (const s of sightings) seen.current.add(s.cab);
+      for (const s of sightings) seen.current.add(sightingKey(s));
       return;
     }
 
     const arrivals = newHeritageArrivals(sightings, seen.current);
     if (arrivals.length === 0) return;
-    for (const s of arrivals) seen.current.add(s.cab);
+    for (const s of arrivals) seen.current.add(sightingKey(s));
 
     void (async () => {
       if (!(await ensureNotifyPermission())) return;

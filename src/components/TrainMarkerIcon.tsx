@@ -22,7 +22,9 @@ interface Props {
   color: string;
   bearing: number | null;
   label: string; // cab number / ghost id — always shown
-  unit?: string | null; // notable unit number if paired
+  unit?: string | null; // the PRIMARY notable unit, when one is assigned
+  /** Units assigned beyond the primary; >0 draws a "+N" chip. */
+  extraUnits?: number;
   selected?: boolean;
   isNonRevenue?: boolean; // deadhead / equipment move — render distinctly
   isGhost?: boolean; // no cab/trip — dashed ring
@@ -33,6 +35,7 @@ export function TrainMarkerIcon({
   bearing,
   label,
   unit,
+  extraUnits = 0,
   selected,
   isNonRevenue = false,
   isGhost = false,
@@ -42,6 +45,13 @@ export function TrainMarkerIcon({
 
   return (
     <View style={styles.wrap} pointerEvents="none">
+      {/* Two assigned units never draw two icons — the primary's icon carries
+          the marker and a "+1" chip signals the rest. */}
+      {extraUnits > 0 && (
+        <View style={styles.extraChip}>
+          <Text style={styles.extraChipText}>+{extraUnits}</Text>
+        </View>
+      )}
       {iconUrl ? (
         <View style={[styles.locoWrap, selected && styles.locoSelected]}>
           <Image
@@ -131,6 +141,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,229,255,0.15)',
   },
   loco: { width: LOCO_W, height: LOCO_H },
+
+  // "+N" chip for a consist carrying more than one assigned unit. Absolutely
+  // positioned so adding it never shifts the icon off the vehicle's position.
+  extraChip: {
+    position: 'absolute',
+    top: -2,
+    right: 6,
+    zIndex: 2,
+    minWidth: 16,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: '#F5C518',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+  },
+  extraChipText: { color: '#0E0F12', fontSize: 9, fontWeight: '900' },
 
   // Cab-number badge (always shown)
   badge: {

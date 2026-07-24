@@ -6,23 +6,48 @@ import { getConfig } from '../config/configStore';
 import type { PredictionRow } from '../api/mbta';
 import { plottableTrains } from '../api/frames';
 import type { DayFrames, Frame, HeartbeatState, Train } from '../types';
+import {
+  assignOutcome,
+  canReduceCapacity,
+  capacityFor,
+  newDesignation,
+  orderedUnitsOnCab,
+  primaryUnitForCab,
+  prunePositions,
+  unitsOnCab,
+  type AssignedAt,
+  type AssignOutcome,
+  type ConsistKind,
+  type Designation,
+  type Designations,
+  type HeritagePairs,
+  type PositionTag,
+} from '../lib/consists';
 
 export type AppMode = 'live' | 'playback';
+export type { HeritagePairs };
 
 /**
  * App state. The live-mode session model: seed once from today's frames file,
- * then polls (or, later, the stream) are the source of truth. Frame snapshots
- * are committed ~1/min into a capped history for scrub/trails.
+ * then the stream (or polls) are the source of truth. Frame snapshots are
+ * committed ~1/min into a capped history for scrub/trails.
  *
- * Heritage pairing is unit number -> cab label, persisted on-device (mirrors
- * the web app's localStorage key `crHeritage`).
+ * Notable-unit assignment is unit number -> cab label, persisted on-device
+ * (mirrors the web app's localStorage key `crHeritage`). Consist designations
+ * live in a SEPARATE key rather than reshaping that one: an install with no
+ * designations behaves exactly as it did before, so existing single pairings
+ * migrate untouched, and a cab's capacity is derived rather than stored.
  */
 
 const HERITAGE_STORAGE_KEY = 'crHeritage';
+const CONSISTS_STORAGE_KEY = 'crConsists.v1';
 const LAYER_PREFS_KEY = 'layerPrefs.v1';
 
-/** unit number -> cab label */
-export type HeritagePairs = Record<string, string>;
+/** Everything the consist sidecar persists. */
+interface ConsistStore {
+  designations: Designations;
+  assignedAt: AssignedAt;
+}
 
 interface AppState {
   // Mode: live polling vs historical playback
@@ -60,8 +85,10 @@ interface AppState {
   predictionsAsOf: number | null;
   predictionsLoading: boolean;
 
-  // Heritage pairing
+  // Notable-unit assignment (unit -> cab) + consist designations (by cab)
   heritage: HeritagePairs;
+  designations: Designations;
+  assignedAt: AssignedAt;
 
   // Map layer toggles (persisted)
   showTrails: boolean; // movement history lines
@@ -73,6 +100,7 @@ interface AppState {
 
   // Actions
   hydrateHeritage: () => Promise<void>;
+  hydrateConsists: () => Promise<void>;
   // Playback
   enterPlayback: (date: string, day: DayFrames) => void;
   setPlaybackLoading: (date: string) => void;
@@ -91,8 +119,25 @@ interface AppState {
   cycleInspect: (key: string) => void;
   setPredictions: (rows: Record<string, PredictionRow[]>) => void;
   setPredictionsLoading: (loading: boolean) => void;
-  pairHeritage: (unit: string, cab: string) => void;
+  /**
+   * Assign a unit to a cab, enforcing that cab's capacity. Returns the outcome
+   * so the CALLER can prompt — the store must not own UI decisions, and an
+   * over-capacity assignment is a question ("mark this cab as a sandwich or a
+   * doubleheader?"), not a failure to swallow. Only 'ok' mutates state.
+   */
+  pairHeritage: (unit: string, cab: string) => AssignOutcome;
   unpairHeritage: (unit: string) => void;
+  /** Create or re-kind a designation. Blocked if it would shed an assignment. */
+  setDesignation: (cab: string, kind: ConsistKind) => DesignationResult;
+  /** Delete a designation outright. Blocked while 2 units are assigned. */
+  removeDesignation: (cab: string) => DesignationResult;
+  /** Edit the freeform locos / position tags / note of an existing designation. */
+  updateDesignation: (
+    cab: string,
+    patch: Partial<Pick<Designation, 'locos' | 'positions' | 'note'>>,
+  ) => void;
+  /** Choose which assigned unit's icon leads the marker. */
+  setPrimaryUnit: (cab: string, unit: string) => void;
   toggleTrails: () => void;
   toggleRoutes: () => void;
   toggleStations: () => void;
@@ -101,6 +146,11 @@ interface AppState {
   toggleNonRevenue: () => void;
   hydrateLayerPrefs: () => Promise<void>;
 }
+
+/** Outcome of a designation edit; 'blocked' never mutates state. */
+export type DesignationResult =
+  | { status: 'ok' }
+  | { status: 'blocked'; cab: string; assigned: string[]; capacity: number };
 
 type LayerPrefs = Pick<
   AppState,
@@ -115,6 +165,41 @@ const DEFAULT_LAYER_PREFS: LayerPrefs = {
   showRevenue: true,
   showNonRevenue: true,
 };
+
+/** Capacity a cab falls back to once its designation is removed. */
+const CAPACITY_AFTER_REMOVAL = 1;
+
+function persistHeritage(heritage: HeritagePairs): void {
+  void AsyncStorage.setItem(HERITAGE_STORAGE_KEY, JSON.stringify(heritage));
+}
+
+function persistConsists(s: Pick<AppState, 'designations' | 'assignedAt'>): void {
+  const payload: ConsistStore = { designations: s.designations, assignedAt: s.assignedAt };
+  void AsyncStorage.setItem(CONSISTS_STORAGE_KEY, JSON.stringify(payload));
+}
+
+/**
+ * When a unit leaves a cab, clear it as that cab's primary so the marker falls
+ * back to whoever remains. The designation itself is untouched.
+ */
+function clearPrimaryIfUnassigned(
+  designations: Designations,
+  heritage: HeritagePairs,
+  unit: string,
+): Designations {
+  const out: Designations = {};
+  let changed = false;
+  for (const [cab, d] of Object.entries(designations)) {
+    if (d.primaryUnit === unit && heritage[unit] !== cab) {
+      const { primaryUnit: _dropped, ...rest } = d;
+      out[cab] = rest;
+      changed = true;
+    } else {
+      out[cab] = d;
+    }
+  }
+  return changed ? out : designations;
+}
 
 function persistLayerPrefs(s: AppState): void {
   const prefs: LayerPrefs = {
@@ -150,6 +235,8 @@ export const useStore = create<AppState>((set, get) => ({
   predictionsAsOf: null,
   predictionsLoading: false,
   heritage: {},
+  designations: {},
+  assignedAt: {},
   ...DEFAULT_LAYER_PREFS,
 
   hydrateHeritage: async () => {
@@ -158,6 +245,19 @@ export const useStore = create<AppState>((set, get) => ({
       if (raw) set({ heritage: JSON.parse(raw) as HeritagePairs });
     } catch {
       // ignore corrupt/missing storage
+    }
+  },
+
+  hydrateConsists: async () => {
+    // Absent (every install before this feature) leaves designations empty, so
+    // every cab has a capacity of one and prior pairings behave unchanged.
+    try {
+      const raw = await AsyncStorage.getItem(CONSISTS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<ConsistStore>;
+      set({ designations: parsed.designations ?? {}, assignedAt: parsed.assignedAt ?? {} });
+    } catch {
+      // ignore corrupt storage — designations are advisory, never load-bearing
     }
   },
 
@@ -261,27 +361,98 @@ export const useStore = create<AppState>((set, get) => ({
   setPredictions: (rows) => set({ predictions: rows, predictionsAsOf: Date.now(), predictionsLoading: false }),
   setPredictionsLoading: (loading) => set({ predictionsLoading: loading }),
 
-  pairHeritage: (unit, cab) =>
-    set((s) => {
-      // A cab can hold only one unit; assigning a unit to a cab clears any
-      // other unit previously on that cab and any prior cab for this unit.
-      const heritage: HeritagePairs = {};
-      for (const [u, c] of Object.entries(s.heritage)) {
-        if (u === unit) continue; // replace this unit's pairing
-        if (c === cab) continue; // this cab is being reassigned
-        heritage[u] = c;
-      }
-      heritage[unit] = cab;
-      void AsyncStorage.setItem(HERITAGE_STORAGE_KEY, JSON.stringify(heritage));
-      return { heritage };
-    }),
+  pairHeritage: (unit, cab) => {
+    const s = get();
+    const outcome = assignOutcome(s.heritage, s.designations, unit, cab);
+    if (outcome.status !== 'ok') return outcome; // caller prompts; nothing changes
+
+    // A unit is on at most one cab, so this move also frees its previous one.
+    // Units already on the target stay put — capacity was checked above.
+    const heritage: HeritagePairs = { ...s.heritage, [unit]: cab };
+    const assignedAt: AssignedAt = { ...s.assignedAt, [unit]: Date.now() };
+    set({ heritage, assignedAt });
+    persistHeritage(heritage);
+    persistConsists(get());
+    return outcome;
+  },
 
   unpairHeritage: (unit) =>
     set((s) => {
       const heritage = { ...s.heritage };
       delete heritage[unit];
-      void AsyncStorage.setItem(HERITAGE_STORAGE_KEY, JSON.stringify(heritage));
-      return { heritage };
+      const assignedAt = { ...s.assignedAt };
+      delete assignedAt[unit];
+
+      // Drop a stale primary pointer, but keep the designation itself: the
+      // consist is still a sandwich whether or not a unit is assigned to it.
+      const designations = clearPrimaryIfUnassigned(s.designations, heritage, unit);
+
+      persistHeritage(heritage);
+      persistConsists({ ...s, designations, assignedAt });
+      return { heritage, assignedAt, designations };
+    }),
+
+  setDesignation: (cab, kind) => {
+    const s = get();
+    const existing = s.designations[cab];
+    // Both kinds hold two, so re-kinding never sheds an assignment today; the
+    // guard is written against capacity so a future kind can't quietly break it.
+    if (!canReduceCapacity(s.heritage, cab, capacityFor(newDesignation(cab, kind, 0)))) {
+      return {
+        status: 'blocked',
+        cab,
+        assigned: unitsOnCab(s.heritage, cab),
+        capacity: capacityFor(existing),
+      };
+    }
+
+    const designation: Designation = existing
+      ? { ...existing, kind, positions: prunePositions(existing.positions, kind) }
+      : newDesignation(cab, kind, Date.now());
+    const designations = { ...s.designations, [cab]: designation };
+    set({ designations });
+    persistConsists(get());
+    return { status: 'ok' };
+  },
+
+  removeDesignation: (cab) => {
+    const s = get();
+    // Removing drops capacity to one: refuse rather than silently unassign.
+    if (!canReduceCapacity(s.heritage, cab, CAPACITY_AFTER_REMOVAL)) {
+      return {
+        status: 'blocked',
+        cab,
+        assigned: unitsOnCab(s.heritage, cab),
+        capacity: CAPACITY_AFTER_REMOVAL,
+      };
+    }
+    const designations = { ...s.designations };
+    delete designations[cab];
+    set({ designations });
+    persistConsists(get());
+    return { status: 'ok' };
+  },
+
+  updateDesignation: (cab, patch) =>
+    set((s) => {
+      const existing = s.designations[cab];
+      if (!existing) return s;
+      const next: Designation = { ...existing, ...patch };
+      // Keep tags consistent with the kind even if a caller passes stray ones.
+      next.positions = prunePositions(next.positions, next.kind);
+      const designations = { ...s.designations, [cab]: next };
+      persistConsists({ ...s, designations });
+      return { designations };
+    }),
+
+  setPrimaryUnit: (cab, unit) =>
+    set((s) => {
+      const existing = s.designations[cab];
+      // Primary only means anything for a designated cab holding two units.
+      if (!existing || !unitsOnCab(s.heritage, cab).includes(unit)) return s;
+      const designations = { ...s.designations, [cab]: { ...existing, primaryUnit: unit } };
+      persistConsists({ ...s, designations });
+      return { designations };
     }),
 
   toggleTrails: () => {
@@ -328,11 +499,31 @@ export const useStore = create<AppState>((set, get) => ({
   },
 }));
 
-/** Reverse lookup: cab label -> unit number (for painting markers). */
-export function cabToUnit(heritage: HeritagePairs): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [unit, cab] of Object.entries(heritage)) out[cab] = unit;
+/**
+ * Reverse lookup: cab label -> the units assigned to it. A designated cab may
+ * hold two, so this returns a list; callers that render a single icon pick the
+ * primary via primaryUnitForCab().
+ */
+export function unitsByCab(heritage: HeritagePairs): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [unit, cab] of Object.entries(heritage)) {
+    const list = out[cab];
+    if (list) list.push(unit);
+    else out[cab] = [unit];
+  }
+  for (const list of Object.values(out)) list.sort((a, b) => a.localeCompare(b));
   return out;
+}
+
+/** The units on a cab in assignment order, primary first. */
+export function displayUnitsForCab(
+  s: Pick<AppState, 'heritage' | 'assignedAt' | 'designations'>,
+  cab: string,
+): string[] {
+  const ordered = orderedUnitsOnCab(s.heritage, s.assignedAt, cab);
+  const primary = primaryUnitForCab(s.heritage, s.assignedAt, s.designations, cab);
+  if (!primary) return ordered;
+  return [primary, ...ordered.filter((u) => u !== primary)];
 }
 
 /** The frame currently shown in playback mode (or undefined). */

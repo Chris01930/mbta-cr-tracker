@@ -16,6 +16,7 @@ import { configureNotifications, ensureNotifyPermission } from './src/lib/notify
  */
 export default function App() {
   const hydrateHeritage = useStore((s) => s.hydrateHeritage);
+  const hydrateConsists = useStore((s) => s.hydrateConsists);
   const hydrateLayerPrefs = useStore((s) => s.hydrateLayerPrefs);
   const hydrateConfig = useConfigStore((s) => s.hydrate);
   const refreshConfig = useConfigStore((s) => s.refresh);
@@ -27,10 +28,11 @@ export default function App() {
     void hydrateConfig();
     void refreshConfig();
     void hydrateHeritage();
+    void hydrateConsists();
     void hydrateLayerPrefs();
     configureNotifications();
     void ensureNotifyPermission();
-  }, [hydrateConfig, refreshConfig, hydrateHeritage, hydrateLayerPrefs]);
+  }, [hydrateConfig, refreshConfig, hydrateHeritage, hydrateConsists, hydrateLayerPrefs]);
 
   // Start the live session (seed + stream-or-poll + watchdog).
   useLiveSession();

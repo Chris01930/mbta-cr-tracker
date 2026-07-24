@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Marker } from '@maplibre/maplibre-react-native';
 import { routeColor } from '../constants/routes';
-import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
+import { displayUnitsForCab, useDisplayedTrains, useStore } from '../state/store';
 import { ALL_VISIBLE, dedupeTrains, trainKey, trainLabel, trainVisible, type VisibilityFilter } from '../lib/trains';
 import { TrainMarkerIcon } from '../components/TrainMarkerIcon';
 
@@ -20,9 +20,20 @@ export function TrainMarkers({
 }) {
   const trains = useDisplayedTrains();
   const heritage = useStore((s) => s.heritage);
+  const designations = useStore((s) => s.designations);
+  const assignedAt = useStore((s) => s.assignedAt);
   const selectedKey = useStore((s) => s.selectedKey);
 
-  const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
+  // cab -> units, primary first. A designated cab may hold two; the marker
+  // shows the primary's icon with a "+1", never two icons.
+  const unitsByCabDisplay = useMemo(() => {
+    const state = { heritage, designations, assignedAt };
+    const out: Record<string, string[]> = {};
+    for (const cab of new Set(Object.values(heritage))) {
+      out[cab] = displayUnitsForCab(state, cab);
+    }
+    return out;
+  }, [heritage, designations, assignedAt]);
 
   // Dedupe (by tracking key) and drop classes toggled off. Heritage-paired locos
   // must always draw above plain markers where they overlap; render/subview order
@@ -44,16 +55,17 @@ export function TrainMarkers({
     <>
       {unique.map((t) => {
         const key = trainKey(t);
-        const unit = t.cab ? unitByCab[t.cab] : undefined;
-        // Explicit z: heritage locos above all plain markers, deterministically.
-        const zIndex = unit ? 1000 : 0;
+        const units = (t.cab ? unitsByCabDisplay[t.cab] : undefined) ?? [];
+        // Explicit z: assigned locos above all plain markers, deterministically.
+        const zIndex = units.length ? 1000 : 0;
         return (
           <Marker key={key} id={key} lngLat={[t.lon, t.lat]} onPress={() => onSelect(key)} style={{ zIndex }}>
             <TrainMarkerIcon
               color={routeColor(t.route)}
               bearing={t.brg}
               label={trainLabel(t)}
-              unit={unit}
+              unit={units[0]}
+              extraUnits={units.length - 1}
               selected={key === selectedKey}
               isNonRevenue={t.isNonRevenue}
               isGhost={t.isGhost}
