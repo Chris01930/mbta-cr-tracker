@@ -3,6 +3,7 @@ import {
   FlatList,
   Image,
   Modal,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +12,9 @@ import {
 } from 'react-native';
 import { CAB_ROSTER, CAB_BY_NUMBER } from '../constants/cabRoster';
 import { routeShort } from '../constants/routes';
+import { groupUnitsByCategory, unitCategoryLine } from '../constants/heritage';
+import { markIconFailed, useUsableIconUrl } from '../lib/iconFallback';
+import type { HeritageUnitInfo } from '../config/schema';
 import { useConfigStore } from '../config/configStore';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { dedupeTrains } from '../lib/trains';
@@ -19,8 +23,10 @@ import { nearestStation } from '../lib/stations';
 import { formatClock } from '../lib/time';
 
 /**
- * Heritage pairing editor. Each unit is assigned to a cab car (assign/reassign/
- * unassign). The assign picker has two tabs:
+ * Notable-unit pairing editor. Each unit is assigned to a cab car (assign/
+ * reassign/unassign), and the roster is grouped by the unit's category
+ * (heritage livery, commemorative, lease power, …) using the labels from
+ * config. The assign picker has two tabs:
  *   - Active: cabs currently in the live feed (with train # + route)
  *   - All cab cars: the full roster, searchable — so a unit can be paired from a
  *     spotting report even when the cab isn't running.
@@ -68,8 +74,14 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   const [tab, setTab] = useState<AssignTab>('active');
   const [search, setSearch] = useState('');
 
-  // The full roster (road number, model, scheme, icon URL) is config-driven.
+  // The full roster (road number, model, scheme, category, icon URL) is
+  // config-driven, as are the category labels and their display order.
   const units = useConfigStore((s) => s.config.heritageUnits);
+  const categories = useConfigStore((s) => s.config.unitCategories);
+  const sections = useMemo(
+    () => groupUnitsByCategory(units, categories).map((g) => ({ title: g.label, data: g.units })),
+    [units, categories],
+  );
 
   const activeCabs = useMemo(
     () =>
@@ -110,44 +122,29 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>{assigning ? `Assign unit ${assigning}` : 'Heritage units'}</Text>
+            <Text style={styles.title}>{assigning ? `Assign unit ${assigning}` : 'Notable units'}</Text>
             <TouchableOpacity onPress={assigning ? closeAssign : onClose}>
               <Text style={styles.close}>{assigning ? 'Back' : 'Done'}</Text>
             </TouchableOpacity>
           </View>
 
           {!assigning ? (
-            <FlatList
-              data={units}
+            <SectionList
+              sections={sections}
               keyExtractor={(u) => u.unit}
-              renderItem={({ item }) => {
-                const cab = heritage[item.unit];
-                return (
-                  <View style={styles.row}>
-                    <View style={styles.rowLeft}>
-                      <Image source={{ uri: item.icon }} style={styles.unitIcon} resizeMode="contain" />
-                      <View style={styles.unitText}>
-                        <Text style={styles.unitName}>
-                          {item.scheme} {item.unit}
-                        </Text>
-                        <Text style={styles.unitModel}>{item.model}</Text>
-                        <Text style={styles.pairing}>{cab ? `Paired to Cab ${cab}` : 'Not paired'}</Text>
-                        {cab && <LocationLine loc={locationByUnit[item.unit] ?? null} />}
-                      </View>
-                    </View>
-                    <View style={styles.actions}>
-                      <TouchableOpacity style={styles.assignBtn} onPress={() => startAssign(item.unit)}>
-                        <Text style={styles.assignText}>{cab ? 'Reassign' : 'Assign'}</Text>
-                      </TouchableOpacity>
-                      {cab && (
-                        <TouchableOpacity style={styles.clearBtn} onPress={() => unpairHeritage(item.unit)}>
-                          <Text style={styles.clearText}>Unassign</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                );
-              }}
+              stickySectionHeadersEnabled={false}
+              renderSectionHeader={({ section }) => (
+                <Text style={styles.sectionHeader}>{section.title}</Text>
+              )}
+              renderItem={({ item }) => (
+                <UnitRow
+                  unit={item}
+                  cab={heritage[item.unit]}
+                  location={locationByUnit[item.unit] ?? null}
+                  onAssign={() => startAssign(item.unit)}
+                  onUnassign={() => unpairHeritage(item.unit)}
+                />
+              )}
               ListFooterComponent={
                 <Text style={styles.note}>
                   Locomotive numbers are never reported by the MBTA feed — pairing is manual,
@@ -251,6 +248,65 @@ export function HeritageSheet({ visible, onClose }: { visible: boolean; onClose:
   );
 }
 
+/**
+ * One roster row. Units whose artwork is missing (no `icon` in config, or an
+ * `icon` URL that fails to load) show a placeholder glyph rather than a broken
+ * image — everything else about the row is identical, since pairing mechanics
+ * don't depend on artwork.
+ */
+function UnitRow({
+  unit,
+  cab,
+  location,
+  onAssign,
+  onUnassign,
+}: {
+  unit: HeritageUnitInfo;
+  cab: string | undefined;
+  location: UnitLocation | null;
+  onAssign: () => void;
+  onUnassign: () => void;
+}) {
+  const iconUrl = useUsableIconUrl(unit.icon);
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowLeft}>
+        {iconUrl ? (
+          <Image
+            source={{ uri: iconUrl }}
+            style={styles.unitIcon}
+            resizeMode="contain"
+            onError={() => markIconFailed(iconUrl)}
+          />
+        ) : (
+          <View style={[styles.unitIcon, styles.unitIconPlaceholder]}>
+            <Text style={styles.unitIconGlyph}>🚂</Text>
+          </View>
+        )}
+        <View style={styles.unitText}>
+          <Text style={styles.unitName}>
+            {unit.scheme} {unit.unit}
+          </Text>
+          <Text style={styles.unitModel}>{unit.model}</Text>
+          <Text style={styles.unitCategory}>{unitCategoryLine(unit)}</Text>
+          <Text style={styles.pairing}>{cab ? `Paired to Cab ${cab}` : 'Not paired'}</Text>
+          {cab && <LocationLine loc={location} />}
+        </View>
+      </View>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.assignBtn} onPress={onAssign}>
+          <Text style={styles.assignText}>{cab ? 'Reassign' : 'Assign'}</Text>
+        </TouchableOpacity>
+        {cab && (
+          <TouchableOpacity style={styles.clearBtn} onPress={onUnassign}>
+            <Text style={styles.clearText}>Unassign</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
 /** The unit's current-or-last-known place + time line, under the pairing. */
 function LocationLine({ loc }: { loc: UnitLocation | null }) {
   if (!loc) return <Text style={styles.locUnknown}>No location today</Text>;
@@ -294,12 +350,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
+  sectionHeader: {
+    color: '#8A909B',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: 14,
+    marginBottom: 2,
+  },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
   unitIcon: { width: 48, height: 34, marginRight: 10 },
+  unitIconPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  unitIconGlyph: { fontSize: 17, opacity: 0.5 },
   unitText: { flexShrink: 1 },
   unitNum: { color: '#F5C518', fontWeight: '800', fontSize: 16, width: 48 },
   unitName: { color: '#fff', fontSize: 14, fontWeight: '600' },
   unitModel: { color: '#F5C518', fontSize: 12, fontWeight: '600', marginTop: 1 },
+  unitCategory: { color: '#B9BEC7', fontSize: 12, marginTop: 1 },
   pairing: { color: '#8A909B', fontSize: 12, marginTop: 2 },
   locCurrent: { color: '#2ECC71', fontSize: 12, fontWeight: '600', marginTop: 2 },
   locPast: { color: '#B9BEC7', fontSize: 12, marginTop: 2 },

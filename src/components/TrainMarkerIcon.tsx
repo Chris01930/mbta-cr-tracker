@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { heritageIconUrl } from '../constants/heritage';
+import { markIconFailed, useUsableIconUrl } from '../lib/iconFallback';
 import { heritageIconOpacity, puckAppearance } from '../lib/markerStyle';
 
 /**
@@ -8,18 +9,20 @@ import { heritageIconOpacity, puckAppearance } from '../lib/markerStyle';
  *
  * - Standard train: a route-colored chevron pointing along the vehicle's
  *   bearing.
- * - Heritage-paired consist: the unit's loco icon (a hosted PNG loaded by URL;
- *   React Native caches it by URI) instead of the chevron, shown upright.
+ * - Consist paired to a notable unit: the unit's loco icon (a hosted PNG loaded
+ *   by URL; React Native caches it by URI) instead of the chevron, upright.
+ * - Paired to a unit with no usable artwork (no `icon` in config, or an `icon`
+ *   whose URL fails): the standard chevron. Never a broken image.
  *
  * The label below ALWAYS shows the cab car number — the icon conveys which
- * heritage unit is on the consist, the badge conveys the cab.
+ * notable unit is on the consist, the badge conveys the cab.
  */
 
 interface Props {
   color: string;
   bearing: number | null;
   label: string; // cab number / ghost id — always shown
-  unit?: string | null; // heritage unit number if paired
+  unit?: string | null; // notable unit number if paired
   selected?: boolean;
   isNonRevenue?: boolean; // deadhead / equipment move — render distinctly
   isGhost?: boolean; // no cab/trip — dashed ring
@@ -34,7 +37,7 @@ export function TrainMarkerIcon({
   isNonRevenue = false,
   isGhost = false,
 }: Props) {
-  const iconUrl = heritageIconUrl(unit);
+  const iconUrl = useUsableIconUrl(heritageIconUrl(unit));
   const puck = puckAppearance(color, isNonRevenue, isGhost);
 
   return (
@@ -45,6 +48,7 @@ export function TrainMarkerIcon({
             source={{ uri: iconUrl }}
             style={[styles.loco, { opacity: heritageIconOpacity(isNonRevenue) }]}
             resizeMode="contain"
+            onError={() => markIconFailed(iconUrl)}
           />
         </View>
       ) : (

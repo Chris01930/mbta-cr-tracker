@@ -16,12 +16,21 @@ export interface RawRoute {
   hidden_in_route_listing?: boolean;
 }
 
-/** Heritage roster entry (schema v2: objects, not plain strings). */
+/**
+ * Notable-unit roster entry (schema v2: objects, not plain strings; schema v3
+ * added `category` / `owner` and made `icon` optional).
+ *
+ * `category` is deliberately a plain string, not a union: labels live in the
+ * top-level `unit_categories` map, so the server can introduce a new category
+ * without an app update. Unknown ids fall back to the raw id as their label.
+ */
 export interface RawHeritageUnit {
   unit: string; // road number — the pairing key
   model: string; // authoritative locomotive model designation
   scheme: string; // livery name
-  icon: string; // hosted PNG URL
+  icon?: string; // hosted PNG URL — absent when artwork isn't uploaded yet
+  category?: string; // key into unit_categories
+  owner?: string; // reporting mark, e.g. RSTX (lease power)
 }
 
 export interface RawConfig {
@@ -43,6 +52,8 @@ export interface RawConfig {
     break_on_route_change: boolean;
   };
   heritage_units: RawHeritageUnit[];
+  /** category id -> display label (schema v3). */
+  unit_categories?: Record<string, string>;
   attribution: { data: string; map: string };
 }
 
@@ -63,7 +74,14 @@ export interface HeritageUnitInfo {
   unit: string;
   model: string;
   scheme: string;
-  icon: string;
+  /** undefined when the entry has no artwork — render the normal marker. */
+  icon?: string;
+  /** Raw category id ('' when the entry predates schema v3). */
+  category: string;
+  /** Human label from `unit_categories`, falling back to the raw id. */
+  categoryLabel: string;
+  /** Reporting mark, when the unit is owned by someone other than the MBTA. */
+  owner?: string;
 }
 
 export type ConfigSource = 'default' | 'cached' | 'live';
@@ -98,13 +116,23 @@ export interface RuntimeConfig {
   };
   heritageUnits: HeritageUnitInfo[];
   heritageById: Record<string, HeritageUnitInfo>;
+  /** category id -> label, in the server's declared order (drives grouping). */
+  unitCategories: Record<string, string>;
   attribution: { data: string; map: string };
 }
 
 // --- Validation + normalization ----------------------------------------------
 
-/** Highest schema version this build understands. */
-export const SUPPORTED_SCHEMA_VERSION = 2;
+/**
+ * Highest schema version this build understands.
+ *
+ * Newer versions are NOT rejected: validation checks only the fields the app
+ * actually depends on and ignores everything else, so a v4 config that keeps
+ * routes/endpoints/heritage_units intact still loads on this build. Hard-failing
+ * on a version bump silently stranded every client on the vendored fallback when
+ * the server moved to v3 — additive schema changes must never do that again.
+ */
+export const SUPPORTED_SCHEMA_VERSION = 3;
 
 // Ultimate safety-net scalars, used only if a (malformed) config omits them and
 // no fallback is supplied. Route/color/model/icon values NEVER come from here —
@@ -125,15 +153,13 @@ function short(name: string): string {
 /**
  * Validate a parsed JSON value as a RawConfig. Returns it typed, or throws with
  * a reason. Strict on the fields the app depends on (routes, endpoints,
- * heritage_units), lenient on the rest (per-field fallback in normalize()).
+ * heritage_units), lenient on the rest (per-field fallback in normalize()) and
+ * forward-compatible on schema_version — see SUPPORTED_SCHEMA_VERSION.
  */
 export function validateRawConfig(value: unknown): RawConfig {
   if (!value || typeof value !== 'object') throw new Error('config not an object');
   const c = value as Partial<RawConfig>;
   if (typeof c.schema_version !== 'number') throw new Error('missing schema_version');
-  if (c.schema_version > SUPPORTED_SCHEMA_VERSION) {
-    throw new Error(`unsupported schema_version ${c.schema_version}`);
-  }
   if (!Array.isArray(c.routes) || c.routes.length === 0) throw new Error('routes missing/empty');
   for (const r of c.routes) {
     if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || typeof r.color !== 'string') {
@@ -145,14 +171,10 @@ export function validateRawConfig(value: unknown): RawConfig {
   }
   if (!Array.isArray(c.heritage_units)) throw new Error('heritage_units missing');
   for (const h of c.heritage_units) {
-    if (
-      !h ||
-      typeof h.unit !== 'string' ||
-      typeof h.model !== 'string' ||
-      typeof h.scheme !== 'string' ||
-      typeof h.icon !== 'string'
-    ) {
-      throw new Error('heritage_units entry missing unit/model/scheme/icon');
+    // `icon` is optional as of v3 (artwork may not be uploaded yet) — requiring
+    // it would reject the whole config, taking routes and endpoints down too.
+    if (!h || typeof h.unit !== 'string' || typeof h.model !== 'string' || typeof h.scheme !== 'string') {
+      throw new Error('heritage_units entry missing unit/model/scheme');
     }
   }
   return c as RawConfig;
@@ -176,12 +198,21 @@ export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback?:
   const routeById: Record<string, RouteInfo> = {};
   for (const r of routes) routeById[r.id] = r;
 
-  const heritageUnits: HeritageUnitInfo[] = raw.heritage_units.map((h) => ({
-    unit: String(h.unit),
-    model: h.model,
-    scheme: h.scheme,
-    icon: h.icon,
-  }));
+  const unitCategories: Record<string, string> = raw.unit_categories ?? fallback?.unitCategories ?? {};
+
+  const heritageUnits: HeritageUnitInfo[] = raw.heritage_units.map((h) => {
+    const category = typeof h.category === 'string' ? h.category : '';
+    return {
+      unit: String(h.unit),
+      model: h.model,
+      scheme: h.scheme,
+      // Blank/whitespace icon is the same as no icon: render the normal marker.
+      icon: typeof h.icon === 'string' && h.icon.trim() ? h.icon : undefined,
+      category,
+      categoryLabel: unitCategories[category] ?? (category || 'Other'),
+      owner: typeof h.owner === 'string' && h.owner.trim() ? h.owner : undefined,
+    };
+  });
   const heritageById: Record<string, HeritageUnitInfo> = {};
   for (const h of heritageUnits) heritageById[h.unit] = h;
 
@@ -219,6 +250,7 @@ export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback?:
     },
     heritageUnits,
     heritageById,
+    unitCategories,
     attribution: {
       data: raw.attribution?.data ?? fallback?.attribution.data ?? '',
       map: raw.attribution?.map ?? fallback?.attribution.map ?? '',

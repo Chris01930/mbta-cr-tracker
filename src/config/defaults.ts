@@ -6,7 +6,9 @@ import { normalizeConfig, validateRawConfig, type RuntimeConfig } from './schema
  * is unreachable. It is the *vendored copy* of config.json (config.default.json)
  * normalized — NOT hand-written values — so the offline fallback stays in sync
  * with the real config and no route/color/model/icon is duplicated in code.
- * Refresh it by re-copying config.json over config.default.json.
+ * Refresh it by re-copying config.json over config.default.json — but strip the
+ * `mbta_keys` block first: API keys must never ship inside the app binary. A
+ * keyless fallback degrades to 60s polling, which is what we want offline.
  */
 export const DEFAULT_CONFIG: RuntimeConfig = normalizeConfig(
   validateRawConfig(vendored as unknown),

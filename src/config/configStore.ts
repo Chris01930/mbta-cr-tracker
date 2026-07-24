@@ -13,9 +13,10 @@ import { normalizeConfig, validateRawConfig, type RuntimeConfig } from './schema
  */
 
 const CONFIG_URL = 'https://trains.chrisnewell.net/config.json';
-// Bumped to v2 so a stale v1 cache (heritage_units was a string array) is
-// ignored rather than mis-normalized.
-const CACHE_KEY = 'runtimeConfig.v2';
+// Bumped per schema revision so a stale cache from an older shape (v1's plain
+// string heritage_units; v2's icon-required entries) is ignored rather than
+// mis-normalized.
+const CACHE_KEY = 'runtimeConfig.v3';
 
 interface ConfigState {
   config: RuntimeConfig;

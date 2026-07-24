@@ -56,9 +56,15 @@ copy; fall back to baked-in defaults if unreachable. It carries:
 - `heritage_units` — the heritage roster as objects: `unit` (road number,
   the pairing key), `model` (locomotive model designation — **config is the
   authoritative source for model numbers; do not hardcode them in the app**),
-  `scheme` (livery name for display), and `icon` (hosted PNG URL — see the
-  heritage section). Schema v2 changed this from a plain string array; treat
-  entries as objects.
+  `scheme` (livery name for display), `icon` (hosted PNG URL — see the
+  heritage section), and as of schema v3 a `category` field (see the
+  top-level `unit_categories` map for labels: heritage, commemorative,
+  lease, custom) plus optional `owner` (reporting mark, e.g. RSTX for
+  leased power). Treat category as a display grouping — the pairing
+  mechanism is identical for all categories. Entries may lack an `icon`
+  that is not yet uploaded; render such units with the normal marker plus
+  the badge/label only, never a broken image. Schema v2 changed this from
+  a plain string array; treat entries as objects.
 - `attribution` — required data/basemap credit strings; display in-app.
 
 The comma-joined `filter[route]` value for API calls is simply

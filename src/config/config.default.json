@@ -1,7 +1,7 @@
 {
-  "schema_version": 2,
-  "updated": "2026-07-19",
-  "comment": "Authoritative runtime config for trains.chrisnewell.net clients (web + mobile). Served from CloudFront with Cache-Control: public, max-age=300. Clients should cache the last good copy and fall back to their baked-in defaults if this file is unreachable.",
+  "schema_version": 3,
+  "updated": "2026-07-23",
+  "comment": "Vendored copy of https://trains.chrisnewell.net/config.json (schema v3), used as the offline/first-launch fallback. Refresh by re-copying config.json over this file. NOTE: the live file's `mbta_keys` block is deliberately stripped here — API keys must never be bundled into the app binary; config.json is their only source. Without it the fallback runs keyless 60s polling, which is the correct safe default when config.json is unreachable.",
   "endpoints": {
     "frames_base": "https://trains.chrisnewell.net/frames/",
     "mbta_api": "https://api-v3.mbta.com",
@@ -100,41 +100,61 @@
       "unit": "1030",
       "model": "F40PH-3C",
       "scheme": "Boston & Maine",
-      "icon": "https://trains.chrisnewell.net/icons/1030.png"
+      "icon": "https://trains.chrisnewell.net/icons/1030.png",
+      "category": "heritage"
     },
     {
       "unit": "1036",
       "model": "F40PH-3C",
       "scheme": "Central System",
-      "icon": "https://trains.chrisnewell.net/icons/1036.png"
+      "icon": "https://trains.chrisnewell.net/icons/1036.png",
+      "category": "heritage"
     },
     {
       "unit": "1071",
       "model": "F40PHM-2C",
       "scheme": "New Haven",
-      "icon": "https://trains.chrisnewell.net/icons/1071.png"
+      "icon": "https://trains.chrisnewell.net/icons/1071.png",
+      "category": "heritage"
     },
     {
       "unit": "1129",
       "model": "GP40MC-3",
       "scheme": "MBTA Classic",
-      "icon": "https://trains.chrisnewell.net/icons/1129.png"
+      "icon": "https://trains.chrisnewell.net/icons/1129.png",
+      "category": "heritage"
     },
     {
       "unit": "1130",
       "model": "GP40MC-3",
       "scheme": "MBTA Purple/Gold",
-      "icon": "https://trains.chrisnewell.net/icons/1130.png"
+      "icon": "https://trains.chrisnewell.net/icons/1130.png",
+      "category": "heritage"
     },
     {
       "unit": "1776",
       "model": "GP40MC-3",
       "scheme": "America 250",
-      "icon": "https://trains.chrisnewell.net/icons/1776.png"
+      "icon": "https://trains.chrisnewell.net/icons/1776.png",
+      "category": "commemorative"
+    },
+    {
+      "unit": "1002",
+      "model": "F40PH-3C",
+      "scheme": "Rolling Stock Solutions",
+      "category": "lease",
+      "owner": "RSTX",
+      "icon": "https://trains.chrisnewell.net/icons/1002.png"
     }
   ],
   "attribution": {
     "data": "Route, schedule, and vehicle data provided by the MBTA / MassDOT. This project is not affiliated with or endorsed by the MBTA.",
-    "map": "Basemap \u00a9 OpenStreetMap contributors"
+    "map": "Basemap © OpenStreetMap contributors"
+  },
+  "unit_categories": {
+    "heritage": "Heritage livery",
+    "commemorative": "Commemorative scheme",
+    "lease": "Lease power",
+    "custom": "Custom / other"
   }
 }

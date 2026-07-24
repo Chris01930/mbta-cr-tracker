@@ -53,8 +53,8 @@ export function HeartbeatBar({
           <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
             <Text style={styles.iconText}>Day</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.heritageBtn} onPress={onOpenHeritage}>
-            <Text style={styles.heritageText}>Heritage</Text>
+          <TouchableOpacity style={styles.unitsBtn} onPress={onOpenHeritage} accessibilityLabel="Notable units">
+            <Text style={styles.unitsText}>Units</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -81,8 +81,8 @@ export function HeartbeatBar({
         <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
           <Text style={styles.iconText}>History</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.heritageBtn} onPress={onOpenHeritage}>
-          <Text style={styles.heritageText}>Heritage</Text>
+        <TouchableOpacity style={styles.unitsBtn} onPress={onOpenHeritage} accessibilityLabel="Notable units">
+          <Text style={styles.unitsText}>Units</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -131,11 +131,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   iconText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  heritageBtn: {
+  // Opens the notable-units roster; labelled "Units" to fit the chip row.
+  unitsBtn: {
     backgroundColor: '#80276C',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  heritageText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  unitsText: { color: '#fff', fontWeight: '700', fontSize: 12 },
 });

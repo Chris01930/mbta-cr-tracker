@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { loadPredictions, type PredictionRow } from '../api/mbta';
 import { routeColor, routeShort } from '../constants/routes';
-import { heritageInfo, heritageName } from '../constants/heritage';
+import { heritageInfo, heritageName, unitCategoryLine } from '../constants/heritage';
 import { cabToUnit, useDisplayedTrains, useStore } from '../state/store';
 import { findByKey, mphLabel, prettyStatus } from '../lib/format';
 import { trainKey, trainTitle } from '../lib/trains';
@@ -11,7 +11,7 @@ import { formatClock } from '../lib/time';
 /**
  * Bottom inspect card driven by the per-train tap cycle:
  *   stage 1 -> label chip (Cab ### · Trn ##)
- *   stage 2 -> details (destination, status, mph, heritage unit if paired)
+ *   stage 2 -> details (destination, status, mph, notable unit if paired)
  *   stage 3 -> next stops (predictions, auto-loaded on entry)
  *   (tap again dismisses)
  * Tapping the card advances the stage; the marker tap sets/advances too.
@@ -31,9 +31,10 @@ export function InspectCard() {
 
   const train = findByKey(trains, selectedKey);
 
-  // Which heritage unit (if any) is paired to this cab.
+  // Which notable unit (if any) is paired to this cab.
   const unitByCab = useMemo(() => cabToUnit(heritage), [heritage]);
   const unit = train?.cab ? unitByCab[train.cab] : undefined;
+  const unitInfo = heritageInfo(unit);
 
   const onLoadStops = useCallback(async () => {
     // Bulk-load predictions for every visible trip once (cached by tripId), so
@@ -88,10 +89,13 @@ export function InspectCard() {
           </View>
         )}
 
-        {/* Heritage tag (whenever paired, from stage 1) */}
+        {/* Notable-unit tag (whenever paired, from stage 1). The category label
+            leads, so lease power reads "LEASE POWER · …" not "HERITAGE · …". */}
         {unit && (
           <View style={styles.heritageTag}>
-            <Text style={styles.heritageText}>HERITAGE · {heritageName(unit)}</Text>
+            <Text style={styles.heritageText}>
+              {(unitInfo?.categoryLabel ?? 'Notable unit').toUpperCase()} · {heritageName(unit)}
+            </Text>
           </View>
         )}
 
@@ -110,10 +114,11 @@ export function InspectCard() {
             <Detail label="Speed" value={mphLabel(train.spd)} />
             {unit && (
               <Detail
-                label="Heritage unit"
-                value={heritageInfo(unit) ? `${heritageInfo(unit)!.model} · ${heritageName(unit)}` : heritageName(unit)}
+                label="Notable unit"
+                value={unitInfo ? `${unitInfo.model} · ${heritageName(unit)}` : heritageName(unit)}
               />
             )}
+            {unitInfo && <Detail label="Category" value={unitCategoryLine(unitInfo)} />}
           </View>
         )}
       </TouchableOpacity>
