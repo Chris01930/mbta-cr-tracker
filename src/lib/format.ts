@@ -23,12 +23,18 @@ export function mphLabel(spd: number | null | undefined): string {
   return `${Math.round(mph)} mph`;
 }
 
+/**
+ * Heartbeat dot: green = streaming fresh, amber = polling (either the keyless
+ * fallback path or the watchdog covering a silent stream), red = no data.
+ * Amber matches the history banner's amber rather than the gold accent, so
+ * "degraded" reads the same everywhere in the UI.
+ */
 export function heartbeatColor(state: HeartbeatState): string {
   switch (state) {
     case 'streaming':
       return '#2ECC71';
     case 'polling':
-      return '#F5C518';
+      return '#F5A623';
     case 'stale':
       return '#E74C3C';
     default:

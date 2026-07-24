@@ -3,15 +3,16 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MapScreen } from './src/map/MapScreen';
-import { useLivePolling } from './src/hooks/useLivePolling';
+import { useLiveSession } from './src/hooks/useLiveSession';
 import { useHeritageNotifications } from './src/hooks/useHeritageNotifications';
 import { useStore } from './src/state/store';
 import { useConfigStore } from './src/config/configStore';
 import { configureNotifications, ensureNotifyPermission } from './src/lib/notify';
 
 /**
- * MBTA Commuter Rail Tracker — polling-only live MVP.
- * Seeds from today's archive frames, then polls the MBTA v3 API every 60s.
+ * MBTA Commuter Rail Tracker. Seeds from today's archive frames, then follows
+ * the MBTA v3 API live — SSE streaming when remote config supplies a key,
+ * 60s keyless polling otherwise.
  */
 export default function App() {
   const hydrateHeritage = useStore((s) => s.hydrateHeritage);
@@ -31,8 +32,8 @@ export default function App() {
     void ensureNotifyPermission();
   }, [hydrateConfig, refreshConfig, hydrateHeritage, hydrateLayerPrefs]);
 
-  // Start the live session (seed + poll + watchdog).
-  useLivePolling();
+  // Start the live session (seed + stream-or-poll + watchdog).
+  useLiveSession();
 
   // Notify when a heritage locomotive newly appears in the live feed.
   useHeritageNotifications();

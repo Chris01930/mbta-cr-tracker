@@ -50,7 +50,11 @@ copy; fall back to baked-in defaults if unreachable. It carries:
   is hidden from the default /routes listing), and config updates propagate
   in minutes instead of app-store review cycles. Render unknown route ids
   gracefully (fallback color + raw id as label).
-- `endpoints` — frames base URL and MBTA API base.
+- `endpoints` — frames base URL and MBTA API base. **Derive every MBTA URL
+  (stream, vehicle polling, predictions, schedules, trips) from
+  `endpoints.mbta_api`** rather than hardcoding the host, so moving clients
+  behind a server-side proxy later is a config edit with no app release.
+- `mbta_keys` — per-app streaming keys; see the streaming section below.
 - `live` / `trails` — the tuning constants described elsewhere in this doc,
   so behavior changes don't require app updates either.
 - `heritage_units` — the heritage roster as objects: `unit` (road number,
@@ -148,10 +152,29 @@ them by id), then `add` / `update` / `remove` with single resources. Only
 one not in your cache, lazily `GET /trips/{id}` (keyless OK) for
 name/headsign, and cache it.
 
-Web app's key is embedded in the page (dedicated, rotatable key named for
-the site). For the mobile app, **request a separate key per the MBTA's
-one-key-per-app policy** at https://api-v3.mbta.com/portal (human approval,
-may take days — build the polling path first).
+**Keys are delivered by config, never compiled in.** `config.json` carries an
+`mbta_keys` block with one key per app (the MBTA's one-key-per-app policy):
+
+```jsonc
+"mbta_keys": {
+  "web_stream":    "<the web page's key>",
+  "mobile_stream": "<the mobile app's key>"   // approved 2026-07-23
+}
+```
+
+The mobile app reads **only** `mbta_keys.mobile_stream` and treats it as the
+sole source of truth:
+
+- Non-empty → enable the SSE streaming path.
+- Empty, absent, or whitespace → the keyless 60 s polling path, unchanged.
+
+Never bundle the key in the binary or commit it to the repo (this includes the
+vendored fallback copy of config.json — strip `mbta_keys` when refreshing it,
+so an offline launch degrades to polling). Rotation and revocation are a config
+redeploy that propagates within the config's `max-age` (300 s); switching
+streaming off remotely is just removing the value. Because the file is public,
+the key is a rate-limit token rather than a secret — don't log it, and keep it
+out of error messages and crash reports.
 
 Fallback watchdog (mirror the web app): if no stream data for >60 s, issue
 one REST poll; check every 15 s. Surface a heartbeat UI: green =
@@ -291,5 +314,3 @@ reloads/changes date.
   heritage unit goes active (its assigned cab appears in the live feed).
 - Day files >07-16 are 1-minute; a native app could stream-parse the JSON
   for faster first paint on cellular.
-- If the MBTA key for streaming is not yet approved, ship polling-only and
-  hot-enable streaming later via remote config.

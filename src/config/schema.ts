@@ -54,6 +54,13 @@ export interface RawConfig {
   heritage_units: RawHeritageUnit[];
   /** category id -> display label (schema v3). */
   unit_categories?: Record<string, string>;
+  /**
+   * Per-app MBTA v3 streaming keys (one key per app, per MBTA policy). The app
+   * reads ONLY `mobile_stream`; `web_stream` belongs to the web client. Empty or
+   * absent = keyless polling. Rotation is a config redeploy, so keys are never
+   * compiled into the binary.
+   */
+  mbta_keys?: { web_stream?: string; mobile_stream?: string };
   attribution: { data: string; map: string };
 }
 
@@ -100,6 +107,12 @@ export interface RuntimeConfig {
   framesBase: string;
   mbtaApi: string;
   iconsBase: string;
+  /**
+   * MBTA streaming key for THIS app (`mbta_keys.mobile_stream`), or '' when the
+   * config doesn't supply one. Non-empty enables the SSE path; empty keeps the
+   * keyless polling behavior. Config is its only source — never bundled.
+   */
+  mobileStreamKey: string;
 
   live: {
     pollIntervalMs: number;
@@ -234,6 +247,9 @@ export function normalizeConfig(raw: RawConfig, source: ConfigSource, fallback?:
     framesBase: raw.endpoints.frames_base,
     mbtaApi: raw.endpoints.mbta_api,
     iconsBase: raw.endpoints.icons_base ?? fallback?.iconsBase ?? '',
+    // No fallback chain: a config that omits the key is explicitly saying
+    // "poll", and must be able to switch streaming back off remotely.
+    mobileStreamKey: typeof raw.mbta_keys?.mobile_stream === 'string' ? raw.mbta_keys.mobile_stream.trim() : '',
     live: {
       pollIntervalMs: sec(live.poll_interval_sec, fl.pollIntervalMs),
       streamWatchdogMs: sec(live.stream_watchdog_sec, fl.streamWatchdogMs),

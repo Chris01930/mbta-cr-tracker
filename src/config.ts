@@ -1,17 +1,12 @@
 /**
  * Static app configuration — values that don't change at runtime. Anything the
  * server can retune (route list, colors, endpoints, live/trails tuning,
- * heritage units) now lives in the runtime config (see src/config/) sourced
- * from config.json with baked-in defaults.
+ * notable units, streaming key) lives in the runtime config (see src/config/)
+ * sourced from config.json with baked-in defaults.
  */
+import { getConfig } from './config/configStore';
 
 export const CONFIG = {
-  /**
-   * MBTA API key for SSE streaming. Empty = polling-only MVP (keyless REST).
-   * Hot-enable streaming later by supplying a key here or via remote config.
-   */
-  mbtaApiKey: '' as string,
-
   /** Earliest date the CloudFront archive has frames for (Eastern service day). */
   archiveStartDate: '2026-07-14',
 
@@ -33,4 +28,13 @@ export const CONFIG = {
   brandColor: '#80276C',
 } as const;
 
-export const IS_STREAMING_ENABLED = () => CONFIG.mbtaApiKey.length > 0;
+/**
+ * The MBTA streaming key for this app. Sourced exclusively from runtime config
+ * (`mbta_keys.mobile_stream`) — never hardcoded here, never bundled with the
+ * app, and never logged or included in error text. Rotating or revoking it is a
+ * config redeploy that propagates within the config's max-age.
+ */
+export const streamKey = (): string => getConfig().mobileStreamKey;
+
+/** Streaming is on iff config supplies a non-empty key; otherwise 60s polling. */
+export const IS_STREAMING_ENABLED = (): boolean => streamKey().length > 0;

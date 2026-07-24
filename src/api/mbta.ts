@@ -1,11 +1,14 @@
-import { CONFIG, IS_STREAMING_ENABLED } from '../config';
+import { streamKey } from '../config';
 import { getConfig } from '../config/configStore';
 import type { Train, VehicleStatus } from '../types';
 
 /**
- * MBTA v3 API client (the live plane). Polling-only MVP: keyless REST at 60s.
- * All responses are JSON:API. When a key is configured, requests attach it and
- * the higher rate limit (1,000/min) applies.
+ * MBTA v3 API client (the live plane): REST polling, predictions, schedules and
+ * trip lookups. All responses are JSON:API. Streaming lives in mbtaStream.ts.
+ *
+ * Every base URL is built from `endpoints.mbta_api` in runtime config and every
+ * route filter from `routes[]`, so repointing the app at a proxy is a config
+ * edit — no host or route id is written down in this file.
  */
 
 // --- JSON:API minimal shapes ------------------------------------------------
@@ -40,8 +43,13 @@ interface TripAttrs {
 
 // --- URL helpers ------------------------------------------------------------
 
+/**
+ * Attach the config-supplied key when there is one. These endpoints all work
+ * keyless; the key just raises the rate limit from ~20/min to 1,000/min.
+ */
 function withKey(url: URL): URL {
-  if (IS_STREAMING_ENABLED()) url.searchParams.set('api_key', CONFIG.mbtaApiKey);
+  const key = streamKey();
+  if (key) url.searchParams.set('api_key', key);
   return url;
 }
 
