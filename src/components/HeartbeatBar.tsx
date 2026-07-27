@@ -68,11 +68,22 @@ export function HeartbeatBar({
     <View style={styles.bar} pointerEvents="box-none">
       <TouchableOpacity style={styles.left} onPress={onOpenRoster} accessibilityLabel="Train list">
         <View style={[styles.dot, { backgroundColor: heartbeatColor(heartbeat) }]} />
-        <Text style={styles.status}>{heartbeatLabel(heartbeat)}</Text>
-        <Text style={styles.meta}>
-          {count} train{count === 1 ? '' : 's'}
-          {lastDataMs != null ? ` · ${agoLabel(lastDataMs)}` : ''}
+        {/* numberOfLines guards against a starved width wrapping the text one
+            character per line (which made the whole bar grow very tall once the
+            "not tracking" badge widened the actions row). It truncates instead. */}
+        <Text style={styles.status} numberOfLines={1}>
+          {heartbeatLabel(heartbeat)}
         </Text>
+        {/* The train-count + freshness text is ancillary (also in the roster);
+            when the "not tracking" badge is competing for the row it would be
+            crushed to an unreadable ellipsis, so yield it entirely then — the
+            heartbeat dot still conveys feed health. */}
+        {darkCount === 0 && (
+          <Text style={styles.meta} numberOfLines={1}>
+            {count} train{count === 1 ? '' : 's'}
+            {lastDataMs != null ? ` · ${agoLabel(lastDataMs)}` : ''}
+          </Text>
+        )}
       </TouchableOpacity>
       <View style={styles.actions}>
         {darkCount > 0 && (
@@ -87,9 +98,9 @@ export function HeartbeatBar({
         <TouchableOpacity style={styles.infoBtn} onPress={onOpenAbout} accessibilityLabel="About">
           <Text style={styles.infoText}>ⓘ</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={onOpenRoster} accessibilityLabel="Train list">
-          <Text style={styles.iconText}>☰</Text>
-        </TouchableOpacity>
+        {/* No ☰ list button here: tapping the status area on the left already
+            opens the roster (same onOpenRoster), and dropping the duplicate
+            keeps the action row from crowding out the status text. */}
         <TouchableOpacity style={styles.iconBtn} onPress={onOpenDates}>
           <Text style={styles.iconText}>History</Text>
         </TouchableOpacity>
