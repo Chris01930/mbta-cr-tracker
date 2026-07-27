@@ -73,3 +73,36 @@ export function rosterCounts(roster: RosterEntry[]): { all: number; nonRevenue: 
   }
   return { all: roster.length, nonRevenue, ghost };
 }
+
+export interface ClassPresence {
+  nonRevenue: boolean;
+  ghost: boolean;
+}
+
+/**
+ * Whether the dataset contains at least one train in each optional class
+ * (non-revenue, ghost). Drives whether the corresponding layer toggle is even
+ * shown: ten days of production data have zero of either, so the rows stay
+ * hidden until a qualifying train actually appears — without touching parsing,
+ * model fields, or rendering. Scans frames + the current live set, short-
+ * circuiting once both classes are found.
+ */
+export function presentTrainClasses(frames: Frame[], live: Train[] = []): ClassPresence {
+  let nonRevenue = false;
+  let ghost = false;
+  const scan = (t: Train) => {
+    if (t.isNonRevenue) nonRevenue = true;
+    if (t.isGhost) ghost = true;
+  };
+  for (const f of frames) {
+    for (const t of f.trains) {
+      scan(t);
+      if (nonRevenue && ghost) return { nonRevenue, ghost };
+    }
+  }
+  for (const t of live) {
+    scan(t);
+    if (nonRevenue && ghost) return { nonRevenue, ghost };
+  }
+  return { nonRevenue, ghost };
+}

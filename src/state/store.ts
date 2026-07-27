@@ -5,6 +5,7 @@ import { CONFIG } from '../config';
 import { getConfig } from '../config/configStore';
 import type { PredictionRow } from '../api/mbta';
 import { plottableTrains } from '../api/frames';
+import { presentTrainClasses, type ClassPresence } from '../lib/roster';
 import type { DayFrames, Frame, HeartbeatState, Train } from '../types';
 import {
   assignOutcome,
@@ -551,4 +552,21 @@ export function selectDisplayedTrains(s: AppState): Train[] {
  */
 export function useDisplayedTrains(): Train[] {
   return useStore(useShallow(selectDisplayedTrains));
+}
+
+/**
+ * Whether the dataset in view contains any non-revenue / ghost trains, so the
+ * corresponding layer toggles can be shown only when they'd act on something.
+ * The "dataset" is the whole live session (frames since launch + the current
+ * poll) in live mode, or the loaded archive day in playback — mirroring what
+ * the roster sheet treats as the day's data.
+ */
+export function selectClassPresence(s: AppState): ClassPresence {
+  if (s.mode === 'playback') return presentTrainClasses(s.playbackDay?.frames ?? []);
+  return presentTrainClasses(s.frames, s.trains);
+}
+
+/** Hook for class presence; useShallow so the derived object stays referentially stable. */
+export function useClassPresence(): ClassPresence {
+  return useStore(useShallow(selectClassPresence));
 }

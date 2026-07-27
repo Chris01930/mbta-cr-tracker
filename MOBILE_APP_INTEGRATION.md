@@ -50,11 +50,7 @@ copy; fall back to baked-in defaults if unreachable. It carries:
   is hidden from the default /routes listing), and config updates propagate
   in minutes instead of app-store review cycles. Render unknown route ids
   gracefully (fallback color + raw id as label).
-- `endpoints` — frames base URL and MBTA API base. **Derive every MBTA URL
-  (stream, vehicle polling, predictions, schedules, trips) from
-  `endpoints.mbta_api`** rather than hardcoding the host, so moving clients
-  behind a server-side proxy later is a config edit with no app release.
-- `mbta_keys` — per-app streaming keys; see the streaming section below.
+- `endpoints` — frames base URL and MBTA API base.
 - `live` / `trails` — the tuning constants described elsewhere in this doc,
   so behavior changes don't require app updates either.
 - `heritage_units` — the heritage roster as objects: `unit` (road number,
@@ -99,8 +95,10 @@ The comma-joined `filter[route]` value for API calls is simply
                                     // the API vehicle resource id, use it as
                                     // the tracking key for these. Added
                                     // 2026-07-19. Render ghosts distinctly
-                                    // (web: dashed route-color ring) and give
-                                    // users a toggle to show/hide them.
+                                    // (web: dashed route-color ring); show
+                                    // the ghosts toggle presence-conditionally
+                                    // (see Feed behaviors: zero observed to
+                                    // date — capability kept as insurance).
           "rev": "NON_REVENUE"      // present ONLY for non-revenue moves
                                     // (deadheads, equipment repositioning);
                                     // absent = revenue trip. Added 2026-07-19;
@@ -152,29 +150,10 @@ them by id), then `add` / `update` / `remove` with single resources. Only
 one not in your cache, lazily `GET /trips/{id}` (keyless OK) for
 name/headsign, and cache it.
 
-**Keys are delivered by config, never compiled in.** `config.json` carries an
-`mbta_keys` block with one key per app (the MBTA's one-key-per-app policy):
-
-```jsonc
-"mbta_keys": {
-  "web_stream":    "<the web page's key>",
-  "mobile_stream": "<the mobile app's key>"   // approved 2026-07-23
-}
-```
-
-The mobile app reads **only** `mbta_keys.mobile_stream` and treats it as the
-sole source of truth:
-
-- Non-empty → enable the SSE streaming path.
-- Empty, absent, or whitespace → the keyless 60 s polling path, unchanged.
-
-Never bundle the key in the binary or commit it to the repo (this includes the
-vendored fallback copy of config.json — strip `mbta_keys` when refreshing it,
-so an offline launch degrades to polling). Rotation and revocation are a config
-redeploy that propagates within the config's `max-age` (300 s); switching
-streaming off remotely is just removing the value. Because the file is public,
-the key is a rate-limit token rather than a secret — don't log it, and keep it
-out of error messages and crash reports.
+Web app's key is embedded in the page (dedicated, rotatable key named for
+the site). For the mobile app, **request a separate key per the MBTA's
+one-key-per-app policy** at https://api-v3.mbta.com/portal (human approval,
+may take days — build the polling path first).
 
 Fallback watchdog (mirror the web app): if no stream data for >60 s, issue
 one REST poll; check every 15 s. Surface a heartbeat UI: green =
@@ -291,6 +270,53 @@ in-memory frame snapshots committed ~1/min for scrub/trails (cap history,
 web uses 600 frames) → archive never re-fetched unless the user explicitly
 reloads/changes date.
 
+## Feed behaviors & data-quality taxonomy (empirical, July 2026)
+
+Findings from continuous 1-minute archiving; design clients around them.
+
+- **Tracked** (normal): vehicle present, correct trip. The vehicle `label`
+  is the consist's REGISTERED CONTROL CAR (cab) — it does not change when
+  a locomotive physically leads (verified on a sandwich set).
+- **Zombie**: real position, STALE trip identity — common right after
+  terminal turnbacks (observed: a cab running inbound while logged onto
+  its previous outbound trip, wrong headsign + predictions for the
+  phantom trip). Vehicle `direction_id` is inherited from the stale trip,
+  so it cannot detect this. Usually self-corrects mid-run.
+- **Dark**: scheduled trip with NO vehicle in the feed at all — the
+  consist's AVL is dead/unlogged. Observed persisting for 1+ week on one
+  set. Undetectable from the vehicles feed by definition; the "Not
+  tracking" feature (schedule cross-reference) is the mitigation.
+- **Ghost** (`vid` field / null label): ZERO observed in 150K+ archived
+  fixes; the API emits nothing rather than anonymous positions. Parsing
+  and rendering are kept as insurance; UI is presence-conditional.
+- **NON_REVENUE flag**: never set for CR in practice (always REVENUE).
+  Same treatment: parse + render kept, UI presence-conditional. CR
+  non-revenue moves manifest as zombies or dark trains instead.
+- **Dead-end attributes for CR** (schema present, always empty — do not
+  build on them): `block_id` (no equipment-cycle data), `carriages`,
+  `occupancy_status`. Consist knowledge is human-sourced only.
+- Route-less vehicles do not exist in the feed; a route-filtered poll
+  misses nothing.
+
+## Train-number structure (decoded from 800+ observed trains)
+
+Train numbers (trip `name`) encode direction, line, and service day:
+
+- **Parity**: even = inbound (toward Boston, including short-turns to
+  Braintree / Readville / Forest Hills / East Taunton), odd = outbound.
+  ~100% consistent.
+- **Hundreds block = line/branch**: 0xx Rockport branch · 1xx Newburyport
+  branch · 2xx Haverhill · 3xx Lowell · 4xx Fitchburg · 5xx Worcester ·
+  6xx Needham · 7xx Franklin · 8xx Providence · 9xx Stoughton ·
+  1000-1049 Kingston · 1050-1099 Greenbush · 16xx Fairmount ·
+  19xx / 20xx New Bedford branches · 99xx CapeFLYER.
+- **Weekend = weekday number + 5000** (5xxx-7xxx bands map block-for-block).
+
+Use for display enrichment (branch identification when headsign is
+unavailable — e.g. dark-train rows) and sanity checks. Numbers are
+timetable identities, not equipment identities: one consist wears many
+numbers per day.
+
 ## Rate-limit & citizenship rules
 
 - One streaming connection per client; reconnect with backoff.
@@ -314,3 +340,5 @@ reloads/changes date.
   heritage unit goes active (its assigned cab appears in the live feed).
 - Day files >07-16 are 1-minute; a native app could stream-parse the JSON
   for faster first paint on cellular.
+- If the MBTA key for streaming is not yet approved, ship polling-only and
+  hot-enable streaming later via remote config.

@@ -1,11 +1,18 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useStore } from '../state/store';
+import { useClassPresence, useStore } from '../state/store';
 
 /**
  * Compact map-layer toggles (floating, top-right). Two groups: map layers
  * (trails / routes / stations) and train-class filters (revenue / non-revenue /
  * ghosts), which hide those classes from both the markers and the trails.
+ *
+ * The Non-revenue and Ghosts rows are shown only when the dataset in view
+ * actually contains such a train — those states are vanishingly rare in
+ * production, so the controls stay out of the way until they'd do something,
+ * and reappear the instant a qualifying train arrives (live) or an archive day
+ * that has them is loaded. Revenue is always shown. Hiding the row is purely
+ * visibility: the underlying filter state, parsing, and rendering are untouched.
  */
 export function LayerToggles() {
   const showTrails = useStore((s) => s.showTrails);
@@ -21,6 +28,8 @@ export function LayerToggles() {
   const toggleNonRevenue = useStore((s) => s.toggleNonRevenue);
   const toggleGhosts = useStore((s) => s.toggleGhosts);
 
+  const present = useClassPresence();
+
   return (
     <View style={styles.panel}>
       <Toggle label="Trails" on={showTrails} onPress={toggleTrails} />
@@ -30,10 +39,18 @@ export function LayerToggles() {
       <Toggle label="Stations" on={showStations} onPress={toggleStations} />
       <View style={styles.groupDivider} />
       <Toggle label="Revenue" on={showRevenue} onPress={toggleRevenue} />
-      <View style={styles.divider} />
-      <Toggle label="Non-revenue" on={showNonRevenue} onPress={toggleNonRevenue} />
-      <View style={styles.divider} />
-      <Toggle label="Ghosts" on={showGhosts} onPress={toggleGhosts} />
+      {present.nonRevenue && (
+        <>
+          <View style={styles.divider} />
+          <Toggle label="Non-revenue" on={showNonRevenue} onPress={toggleNonRevenue} />
+        </>
+      )}
+      {present.ghost && (
+        <>
+          <View style={styles.divider} />
+          <Toggle label="Ghosts" on={showGhosts} onPress={toggleGhosts} />
+        </>
+      )}
     </View>
   );
 }
