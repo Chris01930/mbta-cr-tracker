@@ -18,6 +18,7 @@ import { DatePickerSheet } from '../components/DatePickerSheet';
 import { StationSheet, type StationTarget } from '../components/StationSheet';
 import { AboutSheet } from '../components/AboutSheet';
 import { RosterSheet } from '../components/RosterSheet';
+import { NotTrackingSheet } from '../components/NotTrackingSheet';
 
 /**
  * The single map screen: MapLibre basemap + CR network overlay + train markers
@@ -38,6 +39,7 @@ export function MapScreen() {
   const [datesOpen, setDatesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
+  const [darkOpen, setDarkOpen] = useState(false);
   const [station, setStation] = useState<StationTarget | null>(null);
 
   // One stable filter object for markers + trails (so their memos don't churn).
@@ -104,6 +106,7 @@ export function MapScreen() {
             onOpenDates={() => setDatesOpen(true)}
             onOpenAbout={() => setAboutOpen(true)}
             onOpenRoster={() => setRosterOpen(true)}
+            onOpenDark={() => setDarkOpen(true)}
           />
           <View style={styles.layerRow} pointerEvents="box-none">
             <LayerToggles />
@@ -116,6 +119,7 @@ export function MapScreen() {
       </SafeAreaView>
 
       <RosterSheet visible={rosterOpen} onClose={() => setRosterOpen(false)} />
+      <NotTrackingSheet visible={darkOpen} onClose={() => setDarkOpen(false)} />
       <HeritageSheet visible={heritageOpen} onClose={() => setHeritageOpen(false)} />
       <DatePickerSheet visible={datesOpen} onClose={() => setDatesOpen(false)} />
       <AboutSheet visible={aboutOpen} onClose={() => setAboutOpen(false)} />

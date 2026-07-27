@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MapScreen } from './src/map/MapScreen';
 import { useLiveSession } from './src/hooks/useLiveSession';
 import { useHeritageNotifications } from './src/hooks/useHeritageNotifications';
+import { useNotTracking } from './src/hooks/useNotTracking';
 import { useStore } from './src/state/store';
 import { useConfigStore } from './src/config/configStore';
 import { configureNotifications, ensureNotifyPermission } from './src/lib/notify';
@@ -39,6 +40,9 @@ export default function App() {
 
   // Notify when a heritage locomotive newly appears in the live feed.
   useHeritageNotifications();
+
+  // Track scheduled trips that are running but absent from the live feed.
+  useNotTracking();
 
   return (
     <SafeAreaProvider>

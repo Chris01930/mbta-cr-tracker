@@ -16,16 +16,19 @@ export function HeartbeatBar({
   onOpenDates,
   onOpenAbout,
   onOpenRoster,
+  onOpenDark,
 }: {
   onOpenHeritage: () => void;
   onOpenDates: () => void;
   onOpenAbout: () => void;
   onOpenRoster: () => void;
+  onOpenDark: () => void;
 }) {
   const mode = useStore((s) => s.mode);
   const heartbeat = useStore((s) => s.heartbeat);
   const lastDataMs = useStore((s) => s.lastDataMs);
   const exitToLive = useStore((s) => s.exitToLive);
+  const darkCount = useStore((s) => s.notTracking.length);
   const trains = useDisplayedTrains();
   const count = useMemo(() => dedupeTrains(trains).length, [trains]);
   const [, tick] = useState(0);
@@ -72,6 +75,15 @@ export function HeartbeatBar({
         </Text>
       </TouchableOpacity>
       <View style={styles.actions}>
+        {darkCount > 0 && (
+          <TouchableOpacity
+            style={styles.darkBadge}
+            onPress={onOpenDark}
+            accessibilityLabel={`${darkCount} trains not tracking`}
+          >
+            <Text style={styles.darkBadgeText}>{darkCount} not tracking</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.infoBtn} onPress={onOpenAbout} accessibilityLabel="About">
           <Text style={styles.infoText}>ⓘ</Text>
         </TouchableOpacity>
@@ -117,6 +129,17 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 10 },
   infoBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   infoText: { color: '#B9BEC7', fontSize: 18, fontWeight: '600' },
+  // Attention pill for dark/untracked scheduled trains — amber, like the
+  // polling heartbeat and history banner, so "degraded/uncertain" reads alike.
+  darkBadge: {
+    backgroundColor: 'rgba(245,166,35,0.18)',
+    borderColor: AMBER,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  darkBadgeText: { color: AMBER, fontWeight: '800', fontSize: 12 },
   goLiveBtn: {
     backgroundColor: '#2ECC71',
     paddingHorizontal: 14,

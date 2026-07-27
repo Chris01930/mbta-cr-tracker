@@ -6,6 +6,7 @@ import { getConfig } from '../config/configStore';
 import type { PredictionRow } from '../api/mbta';
 import { plottableTrains } from '../api/frames';
 import { presentTrainClasses, type ClassPresence } from '../lib/roster';
+import type { DarkTrip } from '../lib/notTracking';
 import type { DayFrames, Frame, HeartbeatState, Train } from '../types';
 import {
   assignOutcome,
@@ -77,6 +78,10 @@ interface AppState {
   lastDataMs: number | null;
   seeded: boolean;
 
+  // Scheduled trips running but absent from the live feed ("not tracking").
+  // Recomputed on every live update; empty in playback.
+  notTracking: DarkTrip[];
+
   // Selection + inspect tap cycle (0=none,1=chip,2=details,3=stops)
   selectedKey: string | null;
   inspectStage: number;
@@ -120,6 +125,7 @@ interface AppState {
   cycleInspect: (key: string) => void;
   setPredictions: (rows: Record<string, PredictionRow[]>) => void;
   setPredictionsLoading: (loading: boolean) => void;
+  setNotTracking: (rows: DarkTrip[]) => void;
   /**
    * Assign a unit to a cab, enforcing that cab's capacity. Returns the outcome
    * so the CALLER can prompt — the store must not own UI decisions, and an
@@ -235,6 +241,7 @@ export const useStore = create<AppState>((set, get) => ({
   predictions: {},
   predictionsAsOf: null,
   predictionsLoading: false,
+  notTracking: [],
   heritage: {},
   designations: {},
   assignedAt: {},
@@ -361,6 +368,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   setPredictions: (rows) => set({ predictions: rows, predictionsAsOf: Date.now(), predictionsLoading: false }),
   setPredictionsLoading: (loading) => set({ predictionsLoading: loading }),
+  setNotTracking: (rows) => set({ notTracking: rows }),
 
   pairHeritage: (unit, cab) => {
     const s = get();

@@ -269,6 +269,152 @@ export async function loadSchedules(
   return out;
 }
 
+// --- Route-wide scheduled trips (for "not tracking" detection) --------------
+
+/** One scheduled stop on a trip: name + the time it's due (arrival||departure). */
+export interface ScheduledStop {
+  name: string;
+  timeMs: number;
+}
+
+/**
+ * A scheduled trip for the whole service day, aggregated from its per-stop
+ * schedule rows. Used to detect trips that are running but absent from the live
+ * vehicle feed ("dark" / not tracking) — the feed can't show them, but the
+ * schedule shows their absence.
+ */
+export interface ScheduledTrip {
+  tripId: string;
+  trainNumber: string | null; // trip name = timetable train number
+  routeId: string | null;
+  headsign: string | null;
+  directionId: number | null;
+  /** Earliest departure across the trip (falls back to earliest arrival). */
+  firstDepartureMs: number;
+  /** Latest arrival across the trip (falls back to latest departure). */
+  lastArrivalMs: number;
+  /** Every scheduled stop, ordered by time. */
+  stops: ScheduledStop[];
+}
+
+interface ScheduledTripAttrs extends TripAttrs {
+  direction_id?: number | null;
+}
+
+/**
+ * Today's scheduled trips across the config route list. One heavy call per
+ * service day (cache it — see getScheduledTrips): the payload spans every CR
+ * trip's stops. The query mirrors the doc's schedule pattern, adding
+ * include=stop + fields[stop]=name so each row's stop can be named for the
+ * "next stops" preview; direction_id comes from the trip.
+ */
+export async function loadScheduledTrips(signal?: AbortSignal): Promise<ScheduledTrip[]> {
+  const url = u('/schedules');
+  url.searchParams.set('filter[route]', getConfig().routeFilter);
+  url.searchParams.set('include', 'trip,stop');
+  url.searchParams.set('fields[schedule]', 'arrival_time,departure_time');
+  url.searchParams.set('fields[trip]', 'name,headsign,direction_id');
+  url.searchParams.set('fields[stop]', 'name');
+  withKey(url);
+
+  const res = await fetch(url.toString(), { signal, headers: { Accept: 'application/vnd.api+json' } });
+  if (!res.ok) throw new Error(`schedules(route): HTTP ${res.status}`);
+  const doc = (await res.json()) as JsonApiDoc;
+
+  const trips = new Map<string, ScheduledTripAttrs>();
+  const stopNames = new Map<string, string>();
+  for (const inc of doc.included ?? []) {
+    if (inc.type === 'trip') trips.set(inc.id, (inc.attributes as unknown as ScheduledTripAttrs) ?? {});
+    else if (inc.type === 'stop') stopNames.set(inc.id, (inc.attributes?.name as string) ?? inc.id);
+  }
+
+  // Accumulate per trip: extreme times + the ordered stop list.
+  interface Acc {
+    routeId: string | null;
+    firstDepartureMs: number;
+    lastArrivalMs: number;
+    stops: ScheduledStop[];
+  }
+  const byTrip = new Map<string, Acc>();
+  const list = Array.isArray(doc.data) ? doc.data : [];
+  for (const s of list) {
+    const tripId = s.relationships?.trip?.data?.id;
+    if (!tripId) continue;
+    const a = s.attributes ?? {};
+    const arr = a.arrival_time ? Date.parse(a.arrival_time as string) : NaN;
+    const dep = a.departure_time ? Date.parse(a.departure_time as string) : NaN;
+    // Departure represents "leaving this stop"; arrival "reaching" it. Use the
+    // one present, preferring departure for the trip start and arrival for end.
+    const depOrArr = Number.isNaN(dep) ? arr : dep;
+    const arrOrDep = Number.isNaN(arr) ? dep : arr;
+    if (Number.isNaN(depOrArr) && Number.isNaN(arrOrDep)) continue; // unscheduled row
+
+    let acc = byTrip.get(tripId);
+    if (!acc) {
+      acc = { routeId: null, firstDepartureMs: Infinity, lastArrivalMs: -Infinity, stops: [] };
+      byTrip.set(tripId, acc);
+    }
+    if (!acc.routeId) acc.routeId = s.relationships?.route?.data?.id ?? null;
+    if (!Number.isNaN(depOrArr)) acc.firstDepartureMs = Math.min(acc.firstDepartureMs, depOrArr);
+    if (!Number.isNaN(arrOrDep)) acc.lastArrivalMs = Math.max(acc.lastArrivalMs, arrOrDep);
+
+    const stopId = s.relationships?.stop?.data?.id;
+    const stopTime = Number.isNaN(arrOrDep) ? depOrArr : arrOrDep;
+    if (stopId && !Number.isNaN(stopTime)) {
+      acc.stops.push({ name: stopNames.get(stopId) ?? stopId, timeMs: stopTime });
+    }
+  }
+
+  const out: ScheduledTrip[] = [];
+  for (const [tripId, acc] of byTrip) {
+    if (!Number.isFinite(acc.firstDepartureMs) || !Number.isFinite(acc.lastArrivalMs)) continue;
+    const trip = trips.get(tripId);
+    acc.stops.sort((x, y) => x.timeMs - y.timeMs);
+    out.push({
+      tripId,
+      trainNumber: trip?.name ?? null,
+      routeId: acc.routeId,
+      headsign: trip?.headsign ?? null,
+      directionId: typeof trip?.direction_id === 'number' ? trip.direction_id : null,
+      firstDepartureMs: acc.firstDepartureMs,
+      lastArrivalMs: acc.lastArrivalMs,
+      stops: acc.stops,
+    });
+  }
+  return out;
+}
+
+/**
+ * Scheduled trips for a service day, fetched at most once per day. Concurrent
+ * callers share the in-flight request; a new day refetches. Kept in memory
+ * (not persisted) — a restart re-fetching today's schedule once is acceptable.
+ */
+let scheduleCache: { day: string; trips: ScheduledTrip[] } | null = null;
+let scheduleInflight: { day: string; promise: Promise<ScheduledTrip[]> } | null = null;
+
+export async function getScheduledTrips(day: string, signal?: AbortSignal): Promise<ScheduledTrip[]> {
+  if (scheduleCache?.day === day) return scheduleCache.trips;
+  if (scheduleInflight?.day === day) return scheduleInflight.promise;
+  const promise = loadScheduledTrips(signal)
+    .then((trips) => {
+      scheduleCache = { day, trips };
+      scheduleInflight = null;
+      return trips;
+    })
+    .catch((err) => {
+      scheduleInflight = null;
+      throw err;
+    });
+  scheduleInflight = { day, promise };
+  return promise;
+}
+
+/** Test-only: clear the per-day schedule cache. */
+export function resetScheduleCache(): void {
+  scheduleCache = null;
+  scheduleInflight = null;
+}
+
 /** meters/second -> mph. */
 export function msToMph(spd: number | null | undefined): number | null {
   if (spd == null) return null;
